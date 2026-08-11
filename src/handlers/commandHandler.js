@@ -112,8 +112,8 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
   try {
     await command({ sock, msg, args, chatId, senderId, commandKey });
   } catch (err) {
-    logger.error(`فشل تنفيذ الأمر ${commandKey}: ${err.message}`);
-    await sock.sendMessage(chatId, { text: '⚠️ صار خطأ أثناء تنفيذ الأمر، حاول مجدداً.' }, { quoted: msg });
+    logger.error(`[Command Error] Command: ${commandKey}, User: ${senderId}, Error: ${err.message}\n${err.stack}`);
+    await sock.sendMessage(chatId, { text: '💥 أستا متعب الان بعد كل هذا الجهد... ولكن أستا لن يستسلم يوماً! هناك خلل سحري صغير.' }, { quoted: msg });
   }
 }
 
