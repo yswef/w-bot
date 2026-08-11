@@ -65,7 +65,7 @@ async function startBot(sessionName = 'default') {
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       logger.warn(`[${normalizedName}] انقطع الاتصال. إعادة اتصال؟ ${shouldReconnect}`);
       if (shouldReconnect) {
-        setTimeout(() => startBot(normalizedName), 3000);
+        setTimeout(() => startBot(normalizedName), 3001);
       } else {
         logger.error(`[${normalizedName}] تم تسجيل الخروج. امسح جلسة ${normalizedName} أو استخدم أمر إعادة الربط.`);
       }
@@ -80,9 +80,9 @@ async function startBot(sessionName = 'default') {
 
   activeBots.set(normalizedName, sock);
 
-  if (!dashboardStarted) {
-    startDashboard();
+if (!dashboardStarted) {
     dashboardStarted = true;
+    startDashboard();
   }
 
   if (normalizedName === getConfiguredSessionNames()[0]) {

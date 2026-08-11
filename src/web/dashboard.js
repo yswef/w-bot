@@ -2,7 +2,7 @@ const http = require('http');
 const { getRecentChats, getLatestMessageForChat } = require('../database/db');
 
 function startDashboard() {
-  const port = process.env.DASHBOARD_PORT || 3000;
+  const port = process.env.PORT || process.env.DASHBOARD_PORT || 3000;
 
   const server = http.createServer((_req, res) => {
     const recentChats = getRecentChats(10);
@@ -25,8 +25,8 @@ function startDashboard() {
     res.end(html);
   });
 
-  server.listen(port, () => {
-    console.log(`Dashboard listening on http://localhost:${port}`);
+server.listen(port, '0.0.0.0', () => {
+    console.log(`Dashboard listening on port ${port}`);
   });
 }
 
