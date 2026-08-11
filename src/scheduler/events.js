@@ -96,6 +96,10 @@ function startScheduler(sock) {
   }, { timezone: config.timezone });
 
   logger.info('✅ تم تفعيل نظام الجدولة (آيات، أذكار، نشرة الأنمي)');
+
+  // تشغيل نظام تنظيف السيرفر
+  const startCleanupCron = require('./cleanup');
+  startCleanupCron();
 }
 
 module.exports = startScheduler;

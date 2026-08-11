@@ -57,6 +57,30 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS game_states (
+    chat_id TEXT PRIMARY KEY,
+    game_type TEXT NOT NULL,
+    state_data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS chat_settings (
+    chat_id TEXT PRIMARY KEY,
+    anti_link INTEGER DEFAULT 0,
+    welcome_enabled INTEGER DEFAULT 0
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS global_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )
+`);
+
 function saveMessage(msg) {
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO messages
@@ -137,6 +161,58 @@ function getLatestMessageForChat(chatId) {
   `).get(chatId);
 }
 
+function setGameState(chatId, gameType, stateData) {
+  const stmt = db.prepare(`
+    INSERT INTO game_states (chat_id, game_type, state_data, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(chat_id) DO UPDATE SET
+      game_type = excluded.game_type,
+      state_data = excluded.state_data,
+      updated_at = excluded.updated_at
+  `);
+  stmt.run(chatId, gameType, JSON.stringify(stateData), Date.now());
+}
+
+function getGameState(chatId) {
+  const row = db.prepare(`SELECT * FROM game_states WHERE chat_id = ?`).get(chatId);
+  if (row) {
+    row.state_data = JSON.parse(row.state_data);
+  }
+  return row;
+}
+
+function clearGameState(chatId) {
+  db.prepare(`DELETE FROM game_states WHERE chat_id = ?`).run(chatId);
+}
+
+function getChatSettings(chatId) {
+  const row = db.prepare(`SELECT * FROM chat_settings WHERE chat_id = ?`).get(chatId);
+  return row || { anti_link: 0, welcome_enabled: 0 };
+}
+
+function setChatSetting(chatId, key, value) {
+  const validKeys = ['anti_link', 'welcome_enabled'];
+  if (!validKeys.includes(key)) return;
+  db.prepare(`
+    INSERT INTO chat_settings (chat_id, ${key})
+    VALUES (?, ?)
+    ON CONFLICT(chat_id) DO UPDATE SET ${key} = excluded.${key}
+  `).run(chatId, value ? 1 : 0);
+}
+
+function getGlobalSetting(key) {
+  const row = db.prepare(`SELECT value FROM global_settings WHERE key = ?`).get(key);
+  return row ? row.value : null;
+}
+
+function setGlobalSetting(key, value) {
+  db.prepare(`
+    INSERT INTO global_settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(key, value);
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -151,4 +227,11 @@ module.exports = {
   getLastSeen,
   getRecentChats,
   getLatestMessageForChat,
+  setGameState,
+  getGameState,
+  clearGameState,
+  getChatSettings,
+  setChatSetting,
+  getGlobalSetting,
+  setGlobalSetting
 };
