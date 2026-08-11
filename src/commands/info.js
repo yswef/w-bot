@@ -6,11 +6,20 @@ module.exports = async function info({ sock, msg, chatId }) {
 ${config.prefix}ping - فحص سرعة البوت
 ${config.prefix}sticker (مع الرد على صورة/فيديو) - تحويلها لملصق
 ${config.prefix}info - عرض هذي القائمة
+${config.prefix}anime - صورة أنمي جذابة + رسالة بأسلوب بلاك كلوفر
+${config.prefix}زوجني - يختار لك شخصية أنمي ويقول زوجتك الجميلة هي
+${config.prefix}lastseen - يعرض آخر مرة شوهدت فيها هذا الشخص
+${config.prefix}رد <الكلمة> <الرد> - يضيف ردًا مخصصًا
+${config.prefix}حذفرد <id> - يحذف ردًا مخصصًا
+${config.prefix}ترحيب <رسالة> - يحدد رسالة ترحيب للقروب
+${config.prefix}لوحة - رابط لوحة التحكم المحلية
 
 ✅ ميزات تعمل تلقائياً بدون أمر:
 - تسجيل الرسائل
 - إعادة إرسال أي رسالة تُحذف
-- ردود آلية على كلمات معينة`;
+- ردود آلية على كلمات معينة
+- ترحيبات تلقائية للقروبات
+- تتبع آخر مرة شوهدت فيها الشخص`;
 
   await sock.sendMessage(chatId, { text }, { quoted: msg });
 };

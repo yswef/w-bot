@@ -5,15 +5,26 @@ const logger = require('../utils/logger');
 const commands = {
   ping: require('../commands/ping'),
   sticker: require('../commands/sticker'),
-  ملصق: require('../commands/sticker'), // نفس أمر الملصق بس بالعربي
+  ملصق: require('../commands/sticker'),
   info: require('../commands/info'),
   مساعدة: require('../commands/info'),
+  anime: require('../commands/fun'),
+  انمي: require('../commands/fun'),
+  زوجني: require('../commands/fun'),
+  lastseen: require('../commands/fun'),
+  'آخر-مرة': require('../commands/fun'),
+  'آخرمرة': require('../commands/fun'),
+  رد: require('../commands/admin'),
+  حذفرد: require('../commands/admin'),
+  ترحيب: require('../commands/admin'),
+  لوحة: require('../commands/admin'),
+  بث: require('../commands/admin'),
 };
 
 async function handleCommand({ sock, msg, text, chatId, senderId }) {
   const withoutPrefix = text.slice(config.prefix.length).trim();
   const [cmdName, ...args] = withoutPrefix.split(/\s+/);
-  const commandKey = cmdName.toLowerCase();
+  const commandKey = cmdName ? cmdName.toLowerCase() : '';
 
   const command = commands[commandKey];
   if (!command) {
@@ -22,7 +33,7 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
   }
 
   try {
-    await command({ sock, msg, args, chatId, senderId });
+    await command({ sock, msg, args, chatId, senderId, commandKey });
   } catch (err) {
     logger.error(`فشل تنفيذ الأمر ${commandKey}: ${err.message}`);
     await sock.sendMessage(chatId, { text: '⚠️ صار خطأ أثناء تنفيذ الأمر.' }, { quoted: msg });

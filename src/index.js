@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
+const startDashboard = require('./web/dashboard');
 
 async function startBot() {
   // بيانات الجلسة تُحفظ في مجلد session/ عشان ما تسوي مسح QR كل مرة تشغّل البوت
@@ -61,6 +62,7 @@ async function startBot() {
 
   // تشغيل الفعاليات المجدولة بعد الاتصال
   startScheduler(sock);
+  startDashboard(sock);
 
   return sock;
 }
