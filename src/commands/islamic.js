@@ -90,7 +90,7 @@ module.exports = async function islamicCommand({ sock, msg, args, chatId, sender
     // ===== جدولة ارسال يومي - للادمن فقط =====
     if (commandKey === 'جدول-ذكر' || commandKey === 'جدول-آية') {
         if (!isOwner) {
-            await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمسؤول فقط.' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لملك السحر (المالك) فقط.' }, { quoted: msg });
             return;
         }
         const type = commandKey.includes('آية') ? 'quran' : 'thikr';
@@ -106,7 +106,7 @@ module.exports = async function islamicCommand({ sock, msg, args, chatId, sender
     // ===== إيقاف الجدولة - للادمن فقط =====
     if (commandKey === 'إيقاف-جدول') {
         if (!isOwner) {
-            await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمسؤول فقط.' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لملك السحر (المالك) فقط.' }, { quoted: msg });
             return;
         }
         const id = parseInt(args[0]);

@@ -103,7 +103,7 @@ module.exports = async function animeNewsCommand({ sock, msg, args, chatId, send
     // ===== الاشتراك في النشرة اليومية للأنمي - للأدمن فقط =====
     if (commandKey === 'نشرة-انمي') {
         if (!isAdminUser(senderId)) {
-            await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمسؤول فقط.' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لفرسان السحر الأقوياء (المشرفين) فقط.' }, { quoted: msg });
             return;
         }
         subscribeToNewsletter(chatId, senderId);
@@ -116,7 +116,7 @@ module.exports = async function animeNewsCommand({ sock, msg, args, chatId, send
     // ===== إلغاء الاشتراك من النشرة - للأدمن فقط =====
     if (commandKey === 'إيقاف-نشرة') {
         if (!isAdminUser(senderId)) {
-            await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمسؤول فقط.' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لفرسان السحر الأقوياء (المشرفين) فقط.' }, { quoted: msg });
             return;
         }
         unsubscribeFromNewsletter(chatId);
