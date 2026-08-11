@@ -57,6 +57,12 @@ const commands = {
   'معلومات-مجموعة': require('../commands/groupAdmin'),
   groupinfo: require('../commands/groupAdmin'),
 
+  // --- أوامر المالك ---
+  صيانة: require('../commands/owner'),
+  maintenance: require('../commands/owner'),
+  stats: require('../commands/owner'),
+  احصائيات: require('../commands/owner'),
+
   // --- أوامر الإدارة ---
   رد: require('../commands/admin'),
   حذفرد: require('../commands/admin'),

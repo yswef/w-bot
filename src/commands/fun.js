@@ -29,6 +29,30 @@ function getRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+async function fetchImageSafe(url) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/jpeg, image/png, image/webp'
+      }
+    });
+    if (!res.ok) throw new Error('Bad status: ' + res.status);
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.startsWith('image/')) {
+      throw new Error('Not an image. Content-Type: ' + contentType);
+    }
+    const buffer = await res.arrayBuffer();
+    if (buffer.byteLength > 5 * 1024 * 1024) throw new Error('Image too large (> 5MB)');
+    return Buffer.from(buffer);
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 module.exports = async function funCommand({ sock, msg, args, chatId, senderId, commandKey }) {
   // إصلاح: أمر انمي يرسل صورة الشخصية مع الاسم والمقولة
   if (commandKey === 'anime' || commandKey === 'انمي') {
@@ -36,9 +60,10 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     const text = `🌸 *مملكة كلوفر*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${character.name}*\n\n💬 "${getRandom(animeQuotes)}"`;
 
     try {
-      await sock.sendMessage(chatId, { image: { url: character.image }, caption: text }, { quoted: msg });
+      const imgBuffer = await fetchImageSafe(character.image);
+      await sock.sendMessage(chatId, { image: imgBuffer, caption: text }, { quoted: msg });
     } catch (err) {
-      await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، تعذر تحميل الصورة من المصدر)*' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
     }
     return;
   }
@@ -48,11 +73,12 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     const character = getRandom(blackCloverCharacters);
     const quote = getRandom(animeQuotes);
     const response = `💖 لقد تم اختيار شريك حياتك من عالم بلاك كلوفر!\n\n💍 زوجتك/زوجك الجميل(ة) هي/هو: *${character.name}* 🌸\n\n💬 ${quote}`;
-    
+
     try {
-      await sock.sendMessage(chatId, { image: { url: character.image }, caption: response }, { quoted: msg });
+      const imgBuffer = await fetchImageSafe(character.image);
+      await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
     } catch (err) {
-      await sock.sendMessage(chatId, { text: response }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: response + '\n\n*(عذرا، تم استنفاد طاقتي السحرية في تحميل الصورة...)*' }, { quoted: msg });
     }
     return;
   }

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage } = require('../database/db');
+const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting } = require('../database/db');
 const config = require('../config');
 const logger = require('../utils/logger');
 const handleCommand = require('./commandHandler');
@@ -26,8 +26,8 @@ const AUTO_REPLIES = {
   'من أنت': 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
   'انا استا ساما': 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
   'معلمك': 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
-  'بلك كلوفر': 'بلوك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
-  'انمي': 'أنا أحب الأنمي، وأحاول أن أكون بوتًا أنيقًا وذكيًا مثل عالم بلاك كلوفر 🖤',
+  'بلاك كلوفر': 'بلاك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
+  'انمي': 'أنا أحب الأنمي، وأحاول أن أكون بوت لا يستسلم مثل معلمي يوسف 🖤',
 };
 
 function extractText(message) {
@@ -71,7 +71,7 @@ async function handleWelcomeMessage(msg, sock, chatId) {
       await sock.sendMessage(chatId, { text });
     }
   } catch (err) {
-    logger.warn('تعذر إرسال رسالة ترحيب: ' + err.message);
+    logger.warn('Failed to send welcome message: ' + err.message);
   }
 }
 
@@ -99,6 +99,15 @@ async function handleIncomingMessages({ messages }, sock) {
       // تخطي المعالجة إذا كان البوت مُوقفاً في هذه المحادثة
       if (isBotDisabled(chatId)) continue;
 
+      const isMaintenance = getGlobalSetting('maintenance_mode') === '1';
+      const isOwner = senderId === (config.ownerNumber + '@s.whatsapp.net');
+      if (isMaintenance && !isOwner) {
+        if (text && text.startsWith(config.prefix)) {
+          await sock.sendMessage(chatId, { text: '🏋️ أستا يتدرب الان ليصبح اقوى، قومو بالدعاء له! الإصرار لا يموت! 💥' }, { quoted: msg });
+        }
+        continue;
+      }
+
       // تسجيل الوسائط في مجلد محلي مؤقت
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
@@ -110,7 +119,7 @@ async function handleIncomingMessages({ messages }, sock) {
           mediaPath = path.join(dir, `${msg.key.id}.${ext}`);
           fs.writeFileSync(mediaPath, buffer);
         } catch (e) {
-          logger.warn('تعذر تحميل الوسائط: ' + e.message);
+          logger.warn('Failed to download media: ' + e.message);
         }
       }
 
@@ -128,8 +137,8 @@ async function handleIncomingMessages({ messages }, sock) {
 
       saveLastSeen({ chatId, senderId });
 
-      const chatType = chatId.endsWith('@g.us') ? '[مجموعة]' : '[خاص]';
-      logger.info(`${chatType} ${msg.pushName || senderId}: ${text || '<وسائط>'}`);
+      const chatType = chatId.endsWith('@g.us') ? '[Group]' : '[Private]';
+      logger.info(`${chatType} ${msg.pushName || senderId}: ${text || '<media>'}`);
 
       // معالجة الأوامر في المجموعات والخاص على حدٍّ سواء
       if (text && text.startsWith(config.prefix)) {
@@ -153,7 +162,7 @@ async function handleIncomingMessages({ messages }, sock) {
         }
       }
     } catch (err) {
-      logger.error('خطأ في معالجة رسالة: ' + err.message);
+      logger.error('Error handling message: ' + err.message);
     }
   }
 }
