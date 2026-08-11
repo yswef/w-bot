@@ -11,7 +11,7 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
-const startDashboard = require('./web/dashboard');
+// const startDashboard = require('./web/dashboard');
 
 const activeBots = new Map();
 let dashboardStarted = false;
@@ -80,10 +80,10 @@ async function startBot(sessionName = 'default') {
 
   activeBots.set(normalizedName, sock);
 
-if (!dashboardStarted) {
-    dashboardStarted = true;
-    startDashboard();
-  }
+// if (!dashboardStarted) {
+//     dashboardStarted = true;
+//     startDashboard();
+//   }
 
   if (normalizedName === getConfiguredSessionNames()[0]) {
     startScheduler(sock);

@@ -13,4 +13,4 @@ startAllSessions().catch((err) => {
 
 startProfessionalDashboard();
 
-module.exports = { startAllSessions, resetSession, getConfiguredSessionNames };
+// module.exports = { startAllSessions, resetSession, getConfiguredSessionNames };
