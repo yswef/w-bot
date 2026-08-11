@@ -3,7 +3,7 @@
 // =============================================
 
 const config = require('../config');
-const { setChatSetting } = require('../database/db');
+const { setChatSetting, addScheduledEvent } = require('../database/db');
 
 // التحقق من صلاحيات المشرف داخل المجموعة
 async function isGroupAdmin(sock, chatId, senderId) {
@@ -164,6 +164,25 @@ module.exports = async function groupAdminCommand({ sock, msg, args, chatId, sen
         const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
         setChatSetting(chatId, 'welcome_enabled', enable);
         await sock.sendMessage(chatId, { text: enable ? '🎉 تم تفعيل بطاقات الترحيب السحرية بالانضمام للجروب!' : '🚫 تم إيقاف الترحيب.' }, { quoted: msg });
+        return;
+    }
+
+    // ===== الجدولة السحرية للمشرفين =====
+    if (commandKey === 'جدولة') {
+        if (!adminOrOwner) return await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمشرفين فقط.' }, { quoted: msg });
+        const type = args[0];
+        if (type === 'قفل') {
+            addScheduledEvent(chatId, '0 0 * * *', 'COMMAND:lock');
+            await sock.sendMessage(chatId, { text: '⏰ أستا مستعد! تم جدولة قفل الجروب تلقائياً في منتصف الليل! (سيعمل غداً وسيتم تطبيقه بعد أي إعادة تشغيل)' }, { quoted: msg });
+        } else if (type === 'فتح') {
+            addScheduledEvent(chatId, '0 6 * * *', 'COMMAND:unlock');
+            await sock.sendMessage(chatId, { text: '⏰ أستا مستعد! تم جدولة فتح الجروب تلقائياً في السادسة صباحاً! (سيتم تفعيله بعد إعادة التشغيل القادمة)' }, { quoted: msg });
+        } else if (type === 'اذكار') {
+            addScheduledEvent(chatId, '0 14 * * 5', '📿 جمعة مباركة أصدقائي! أستا يذكركم بقراءة سورة الكهف والإكثار من الصلاة على النبي!');
+            await sock.sendMessage(chatId, { text: '⏰ تم إضافة التنبيه! سأقوم بتذكير الجروب كل جمعة الساعة 2 ظهراً.' }, { quoted: msg });
+        } else {
+            await sock.sendMessage(chatId, { text: '⚠️ حدد نوع السحر المطلوب: `!جدولة قفل` | `!جدولة فتح` | `!جدولة اذكار`' }, { quoted: msg });
+        }
         return;
     }
 };

@@ -97,6 +97,34 @@ function startScheduler(sock) {
 
   logger.info('✅ تم تفعيل نظام الجدولة (آيات، أذكار، نشرة الأنمي)');
 
+  // Dynamic User-Defined Schedules
+  const { getScheduledEvents } = require('../database/db');
+  const allEvents = getScheduledEvents();
+  allEvents.forEach((evt) => {
+    cron.schedule(evt.cron_expression, async () => {
+      try {
+        if (evt.message.startsWith('COMMAND:')) {
+          const cmd = evt.message.split('COMMAND:')[1];
+          if (cmd === 'lock') {
+            await sock.groupSettingUpdate(evt.chat_id, 'announcement');
+            logger.info(`Scheduled Event: locked group ${evt.chat_id}`);
+          }
+          if (cmd === 'unlock') {
+            await sock.groupSettingUpdate(evt.chat_id, 'not_announcement');
+            logger.info(`Scheduled Event: unlocked group ${evt.chat_id}`);
+          }
+        } else {
+          await sock.sendMessage(evt.chat_id, { text: evt.message });
+          logger.info(`Scheduled Event: sent message to group ${evt.chat_id}`);
+        }
+      } catch (err) {
+        logger.error(`فشل تشغيل الجدولة للنظام الديناميكي: ${err.message}`);
+      }
+    }, { timezone: config.timezone });
+  });
+
+  logger.info(`✅ تم تحميل ${allEvents.length} جدولة ديناميكية للمجموعات.`);
+
   // تشغيل نظام تنظيف السيرفر
   const startCleanupCron = require('./cleanup');
   startCleanupCron();

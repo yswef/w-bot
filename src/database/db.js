@@ -213,6 +213,15 @@ function setGlobalSetting(key, value) {
   `).run(key, value);
 }
 
+function addScheduledEvent(chatId, cronExpression, message) {
+  const stmt = db.prepare(`INSERT INTO scheduled_events (chat_id, cron_expression, message, active) VALUES (?, ?, ?, 1)`);
+  stmt.run(chatId, cronExpression, message);
+}
+
+function getScheduledEvents() {
+  return db.prepare(`SELECT * FROM scheduled_events WHERE active = 1`).all();
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -233,5 +242,7 @@ module.exports = {
   getChatSettings,
   setChatSetting,
   getGlobalSetting,
-  setGlobalSetting
+  setGlobalSetting,
+  addScheduledEvent,
+  getScheduledEvents
 };
