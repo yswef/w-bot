@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { saveCustomReply, deleteCustomReply, setWelcomeMessage, getWelcomeMessage } = require('../database/db');
 const config = require('../config');
+const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
   const isOwner = senderId.includes(config.ownerNumber) || senderId === config.ownerNumber;
@@ -42,9 +43,22 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   }
 
   if (commandKey === 'لوحة') {
-    const dashboardPath = path.join(__dirname, '..', 'web', 'dashboard.js');
-    const text = `🧩 لوحة التحكم المحلية جاهزة عند تشغيل البوت على هذا الجهاز.\nالمسار: ${dashboardPath}`;
+    const text = `🧩 لوحة التحكم جاهزة على الرابط المحلي:\nhttp://localhost:3000\n\nالجلسات المتاحة: ${getConfiguredSessionNames().join(', ')}`;
     await sock.sendMessage(chatId, { text }, { quoted: msg });
+    return;
+  }
+
+  if (commandKey === 'جلسات') {
+    const text = `🧩 الجلسات النشطة: ${getActiveSessionNames().join(', ') || 'لا توجد جلسات نشطة'}`;
+    await sock.sendMessage(chatId, { text }, { quoted: msg });
+    return;
+  }
+
+  if (commandKey === 'اعادةربط' || commandKey === 'reconnect') {
+    const name = args[0] || 'default';
+    await sock.sendMessage(chatId, { text: `🔄 جاري إعادة ربط الجلسة ${name}...` }, { quoted: msg });
+    await resetSession(name);
+    await sock.sendMessage(chatId, { text: `✅ تم إعادة ربط الجلسة ${name}` }, { quoted: msg });
     return;
   }
 

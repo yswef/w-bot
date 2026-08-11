@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>لوحة تحكم بوت أنمي</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #0f172a, #1e1b4b);
+        color: #f8fafc;
+      }
+      .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+      .card { background: rgba(15,23,42,0.85); border: 1px solid #7c3aed; border-radius: 18px; padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); }
+      h1, h2 { color: #f0abfc; }
+      button, input { padding: 10px 12px; border-radius: 10px; border: none; margin: 4px; }
+      button { background: linear-gradient(90deg, #8b5cf6, #ec4899); color: white; cursor: pointer; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+      .reply-item { background: #111827; padding: 10px; border-radius: 10px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>🖤 لوحة تحكم بوت أنمي</h1>
+        <p>إدارة الردود، متابعة الرسائل، وأجواء بلاك كلوفر المميزة.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2>💬 إضافة رد جديد</h2>
+          <input id="keyword" placeholder="الكلمة" />
+          <input id="reply" placeholder="الرد" />
+          <button onclick="addReply()">حفظ الرد</button>
+        </div>
+        <div class="card">
+          <h2>✨ الردود الحالية</h2>
+          <div id="replies"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      async function loadReplies() {
+        const res = await fetch('/api/replies');
+        const data = await res.json();
+        const container = document.getElementById('replies');
+        container.innerHTML = data.map(item => `<div class="reply-item"><strong>${item.keyword}</strong><br>${item.reply}<br><button onclick="deleteReply(${item.id})">حذف</button></div>`).join('');
+      }
+      async function addReply() {
+        const keyword = document.getElementById('keyword').value;
+        const reply = document.getElementById('reply').value;
+        await fetch(`/api/replies/add?keyword=${encodeURIComponent(keyword)}&reply=${encodeURIComponent(reply)}`);
+        document.getElementById('keyword').value = '';
+        document.getElementById('reply').value = '';
+        loadReplies();
+      }
+      async function deleteReply(id) {
+        await fetch(`/api/replies/delete?id=${id}`);
+        loadReplies();
+      }
+      loadReplies();
+    </script>
+  </body>
+</html>

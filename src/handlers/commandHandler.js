@@ -18,7 +18,14 @@ const commands = {
   حذفرد: require('../commands/admin'),
   ترحيب: require('../commands/admin'),
   لوحة: require('../commands/admin'),
+  جلسات: require('../commands/admin'),
+  اعادةربط: require('../commands/admin'),
+  reconnect: require('../commands/admin'),
   بث: require('../commands/admin'),
+  لعبة: require('../commands/games'),
+  game: require('../commands/games'),
+  أفكاري: require('../commands/games'),
+  guess: require('../commands/games'),
 };
 
 async function handleCommand({ sock, msg, text, chatId, senderId }) {
