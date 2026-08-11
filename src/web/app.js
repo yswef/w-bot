@@ -4,7 +4,7 @@ const path = require('path');
 const { getRecentChats, getLatestMessageForChat, saveCustomReply, getCustomReplies, deleteCustomReply } = require('../database/db');
 
 function startProfessionalDashboard() {
-  const port = process.env.DASHBOARD_PORT || 3001;
+  const port = process.env.DASHBOARD_PORT || 3000;
   const htmlPath = path.join(__dirname, 'index.html');
 
   const server = http.createServer((req, res) => {

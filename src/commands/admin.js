@@ -43,7 +43,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   }
 
   if (commandKey === 'لوحة') {
-    const text = `🧩 لوحة التحكم جاهزة على الرابط المحلي:\nhttp://localhost:3001\n\nالجلسات المتاحة: ${getConfiguredSessionNames().join(', ')}`;
+    const text = `🧩 لوحة التحكم جاهزة على الرابط المحلي:\nhttp://localhost:3000\n\nالجلسات المتاحة: ${getConfiguredSessionNames().join(', ')}`;
     await sock.sendMessage(chatId, { text }, { quoted: msg });
     return;
   }
