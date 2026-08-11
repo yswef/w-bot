@@ -222,6 +222,27 @@ function getScheduledEvents() {
   return db.prepare(`SELECT * FROM scheduled_events WHERE active = 1`).all();
 }
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS custom_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword TEXT NOT NULL,
+    emoji TEXT NOT NULL
+  )
+`);
+
+function saveCustomReaction({ keyword, emoji }) {
+  const stmt = db.prepare(`INSERT INTO custom_reactions (keyword, emoji) VALUES (?, ?)`);
+  stmt.run(keyword, emoji);
+}
+
+function getCustomReactions() {
+  return db.prepare(`SELECT * FROM custom_reactions`).all();
+}
+
+function deleteCustomReaction(id) {
+  return db.prepare(`DELETE FROM custom_reactions WHERE id = ?`).run(id);
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -230,6 +251,9 @@ module.exports = {
   saveCustomReply,
   getCustomReplies,
   deleteCustomReply,
+  saveCustomReaction,
+  getCustomReactions,
+  deleteCustomReaction,
   setWelcomeMessage,
   getWelcomeMessage,
   saveLastSeen,

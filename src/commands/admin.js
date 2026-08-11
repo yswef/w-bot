@@ -26,6 +26,30 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
     return;
   }
 
+  if (commandKey === 'تفاعل') {
+    const [keyword, emoji] = args;
+    if (!keyword || !emoji) {
+      await sock.sendMessage(chatId, { text: 'استخدم: !تفاعل <الكلمة> <الايموجي>' }, { quoted: msg });
+      return;
+    }
+    const { saveCustomReaction } = require('../database/db');
+    saveCustomReaction({ keyword, emoji });
+    await sock.sendMessage(chatId, { text: `✅ تم إضافة التفاعل ${emoji} للكلمة: ${keyword}` }, { quoted: msg });
+    return;
+  }
+
+  if (commandKey === 'حذفتفاعل') {
+    const id = Number(args[0]);
+    if (!id) {
+      await sock.sendMessage(chatId, { text: 'استخدم: !حذفتفاعل <id>' }, { quoted: msg });
+      return;
+    }
+    const { deleteCustomReaction } = require('../database/db');
+    deleteCustomReaction(id);
+    await sock.sendMessage(chatId, { text: `✅ تم حذف التفاعل رقم ${id}` }, { quoted: msg });
+    return;
+  }
+
   if (commandKey === 'حذفرد') {
     const id = Number(args[0]);
     if (!id) {

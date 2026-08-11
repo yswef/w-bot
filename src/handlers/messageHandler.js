@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings } = require('../database/db');
+const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings, getMessage, getCustomReactions } = require('../database/db');
 const { createWelcomeCard } = require('../utils/welcomeCard');
 const config = require('../config');
 const logger = require('../utils/logger');
@@ -95,6 +95,20 @@ async function handleIncomingMessages({ messages }, sock) {
       const chatId = msg.key.remoteJid;
       // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
       const senderId = msg.key.participant || msg.key.remoteJid;
+
+      // منع تعديل الرسائل
+      const protocolType = msg.message?.protocolMessage?.type;
+      if (protocolType === 14) {
+        await sock.sendMessage(chatId, { text: '⚔️ أستا لاحظ أنك قمت بتعديل رسالتك! لا يمكنك التراجع عن كلماتك في قتال السحر!' }, { quoted: msg });
+
+        const originalId = msg.message.protocolMessage.key.id;
+        const oldMsg = getMessage(originalId);
+        if (oldMsg && oldMsg.text_content) {
+          await sock.sendMessage(chatId, { text: `لقد قلت سابقاً:\n"${oldMsg.text_content}"\n\nأستا لا ينسى ولا يتراجع!` }, { quoted: msg });
+        }
+        continue;
+      }
+
       const text = extractText(msg.message);
       const msgType = Object.keys(msg.message)[0];
 
@@ -126,6 +140,16 @@ async function handleIncomingMessages({ messages }, sock) {
             await sock.sendMessage(chatId, { text: '⚔️ أستا لن يسمح بنشر سحر الأعداء في هذا الجروب! روابط ممنوعة!' }, { quoted: msg });
             try { await sock.sendMessage(chatId, { delete: msg.key }); } catch (e) { }
             continue; // Stop processing this message
+          }
+        }
+      }
+
+      // التفاعلات المخصصة (Auto-Reactions)
+      if (text) {
+        const reactions = getCustomReactions();
+        for (const rx of reactions) {
+          if (text.includes(rx.keyword)) {
+            await sock.sendMessage(chatId, { react: { text: rx.emoji, key: msg.key } });
           }
         }
       }

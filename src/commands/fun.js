@@ -63,7 +63,11 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
       const imgBuffer = await fetchImageSafe(character.image);
       await sock.sendMessage(chatId, { image: imgBuffer, caption: text }, { quoted: msg });
     } catch (err) {
-      await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
+      try {
+        await sock.sendMessage(chatId, { image: { url: character.image }, caption: text }, { quoted: msg });
+      } catch (err2) {
+        await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
+      }
     }
     return;
   }
@@ -78,7 +82,11 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
       const imgBuffer = await fetchImageSafe(character.image);
       await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
     } catch (err) {
-      await sock.sendMessage(chatId, { text: response + '\n\n*(عذرا، تم استنفاد طاقتي السحرية في تحميل الصورة...)*' }, { quoted: msg });
+      try {
+        await sock.sendMessage(chatId, { image: { url: character.image }, caption: response }, { quoted: msg });
+      } catch (err2) {
+        await sock.sendMessage(chatId, { text: response + '\n\n*(عذرا، تم استنفاد طاقتي السحرية في تحميل الصورة...)*' }, { quoted: msg });
+      }
     }
     return;
   }

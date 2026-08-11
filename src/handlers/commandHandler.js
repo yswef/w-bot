@@ -68,6 +68,8 @@ const commands = {
   احصائيات: require('../commands/owner'),
 
   // --- أوامر الإدارة ---
+  تفاعل: require('../commands/admin'),
+  حذفتفاعل: require('../commands/admin'),
   رد: require('../commands/admin'),
   حذفرد: require('../commands/admin'),
   ترحيب: require('../commands/admin'),
