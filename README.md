@@ -163,7 +163,7 @@ pm2 startup     # يخليه يشتغل تلقائياً حتى لو أعدت ت
 
 أوامر مفيدة:
 ```bash
-pm2 logs whatsapp-bot     # متابعة السجلات لحظياً
+pm2 logs whatsapp-bot --lines 50     # متابعة السجلات لحظياً
 pm2 restart whatsapp-bot  # إعادة تشغيل
 pm2 stop whatsapp-bot     # إيقاف
 ```
