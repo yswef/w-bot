@@ -56,37 +56,49 @@ async function fetchImageSafe(url) {
 module.exports = async function funCommand({ sock, msg, args, chatId, senderId, commandKey }) {
   // إصلاح: أمر انمي يرسل صورة الشخصية مع الاسم والمقولة
   if (commandKey === 'anime' || commandKey === 'انمي') {
-    const character = getRandom(blackCloverCharacters);
-    const text = `🌸 *مملكة كلوفر*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${character.name}*\n\n💬 "${getRandom(animeQuotes)}"`;
-
     try {
-      const imgBuffer = await fetchImageSafe(character.image);
-      await sock.sendMessage(chatId, { image: imgBuffer, caption: text }, { quoted: msg });
-    } catch (err) {
+      const res = await fetch('https://api.jikan.moe/v4/random/characters');
+      const data = await res.json();
+      const char = data.data;
+      const text = `🌸 *مملكة الأنمي*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${char.name}*\n${char.name_kanji ? `(${char.name_kanji})\n` : ''}\n💬 "${getRandom(animeQuotes)}"`;
+      const imageUrl = char.images.jpg.image_url;
+
       try {
-        await sock.sendMessage(chatId, { image: { url: character.image }, caption: text }, { quoted: msg });
-      } catch (err2) {
-        await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
+        const imgBuffer = await fetchImageSafe(imageUrl);
+        await sock.sendMessage(chatId, { image: imgBuffer, caption: text }, { quoted: msg });
+      } catch (imgErr) {
+        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: text }, { quoted: msg });
       }
+    } catch (err) {
+      // Fallback in case of Jikan API failure or rate limit
+      const character = getRandom(blackCloverCharacters);
+      const text = `🌸 *مملكة كلوفر*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${character.name}*\n\n💬 "${getRandom(animeQuotes)}"`;
+      await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
     }
     return;
   }
 
   // إصلاح: أمر زوجني يرسل صورة الشخصية واسمها بدلاً من النص فقط
   if (commandKey === 'زوجني') {
-    const character = getRandom(blackCloverCharacters);
-    const quote = getRandom(animeQuotes);
-    const response = `💖 لقد تم اختيار شريك حياتك من عالم بلاك كلوفر!\n\n💍 زوجتك/زوجك الجميل(ة) هي/هو: *${character.name}* 🌸\n\n💬 ${quote}`;
-
     try {
-      const imgBuffer = await fetchImageSafe(character.image);
-      await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
-    } catch (err) {
+      const res = await fetch('https://api.jikan.moe/v4/random/characters');
+      const data = await res.json();
+      const char = data.data;
+      const quote = getRandom(animeQuotes);
+      const response = `💖 لقد تم اختيار شريك حياتك من عالم الأنمي!\n\n💍 زوجتك/زوجك الجميل(ة) هي/هو: *${char.name}* 🌸\n\n💬 ${quote}`;
+      const imageUrl = char.images.jpg.image_url;
+
       try {
-        await sock.sendMessage(chatId, { image: { url: character.image }, caption: response }, { quoted: msg });
-      } catch (err2) {
-        await sock.sendMessage(chatId, { text: response + '\n\n*(عذرا، تم استنفاد طاقتي السحرية في تحميل الصورة...)*' }, { quoted: msg });
+        const imgBuffer = await fetchImageSafe(imageUrl);
+        await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
+      } catch (imgErr) {
+        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: response }, { quoted: msg });
       }
+    } catch (err) {
+      const character = getRandom(blackCloverCharacters);
+      const quote = getRandom(animeQuotes);
+      const response = `💖 لقد تم اختيار شريك حياتك من عالم بلاك كلوفر!\n\n💍 زوجتك/زوجك الجميل(ة) هي/هو: *${character.name}* 🌸\n\n💬 ${quote}`;
+      await sock.sendMessage(chatId, { text: response + '\n\n*(عذرا، تم استنفاد طاقتي السحرية في إظهار الصورة...)*' }, { quoted: msg });
     }
     return;
   }
