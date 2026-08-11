@@ -5,18 +5,23 @@ const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage } = requi
 const config = require('../config');
 const logger = require('../utils/logger');
 const handleCommand = require('./commandHandler');
+// دالة التحقق من إيقاف البوت في مجموعة معينة (safe import)
+let isBotDisabled;
+try { isBotDisabled = require('../commands/utils').isBotDisabled; }
+catch (e) { isBotDisabled = () => false; }
+
 
 const AUTO_REPLIES = {
-  سلام: 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
-  مرحبا: 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
-  هلا: 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
-  صباح: 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
-  مساء: 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
-  يوسف: 'يا عيون يوسف، أنت كيف الحال؟ 🤖🍀',
-  شكرا: 'العفو! في خدمتك دائماً ✨🤖🍀',
-  مشكور: 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
-  يعطيك: 'الله يعافيك ويسلمك! ✨🤖🍀',
-  تسلم: 'الله يسلمك ويحفظك ✨🤖🍀',
+  "سلام": 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
+  "مرحبا": 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
+  "هلا": 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
+  "صباح": 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
+  "مساء": 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
+  "يوسف": 'يا عيون يوسف، أنت كيف الحال؟ 🤖🍀',
+  "شكرا": 'العفو! في خدمتك دائماً ✨🤖🍀',
+  "مشكور": 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
+  "يعطيك": 'الله يعافيك ويسلمك! ✨🤖🍀',
+  "تسلم": 'الله يسلمك ويحفظك ✨🤖🍀',
   '.': 'يوسف قد يبدو متصلاً لكنه يشتغل الآن (رد آلي 🤖🍀)',
   'من أنت': 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
   'انا استا ساما': 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
@@ -73,19 +78,28 @@ async function handleWelcomeMessage(msg, sock, chatId) {
 async function handleIncomingMessages({ messages }, sock) {
   for (const msg of messages) {
     try {
+      // تخطي الرسائل الفارغة
       if (!msg.message) continue;
+      // تخطي رسائل البوت نفسه
       if (msg.key.fromMe) continue;
 
       const chatId = msg.key.remoteJid;
-      const senderId = msg.key.participant || chatId;
+      // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
+      const senderId = msg.key.participant || msg.key.remoteJid;
       const text = extractText(msg.message);
       const msgType = Object.keys(msg.message)[0];
 
-      const isSystemEvent = msg.message?.messageStubType === 27 || msg.message?.messageStubType === 28;
-      if (isSystemEvent) {
+      // معالجة أحداث الانضمام للمجموعات (ترحيب تلقائي)
+      const stubType = msg.message?.messageStubType;
+      if (stubType === 27 || stubType === 28) {
         await handleWelcomeMessage(msg, sock, chatId);
+        continue; // هذا حدث نظامي، ليس رسالة عادية
       }
 
+      // تخطي المعالجة إذا كان البوت مُوقفاً في هذه المحادثة
+      if (isBotDisabled(chatId)) continue;
+
+      // تسجيل الوسائط في مجلد محلي مؤقت
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
         try {
@@ -100,6 +114,7 @@ async function handleIncomingMessages({ messages }, sock) {
         }
       }
 
+      // حفظ الرسالة وآخر ظهور
       saveMessage({
         id: msg.key.id,
         chat_id: chatId,
@@ -113,14 +128,17 @@ async function handleIncomingMessages({ messages }, sock) {
 
       saveLastSeen({ chatId, senderId });
 
-      logger.info(`[رسالة] ${msg.pushName || senderId}: ${text || '<وسائط>'}`);
+      const chatType = chatId.endsWith('@g.us') ? '[مجموعة]' : '[خاص]';
+      logger.info(`${chatType} ${msg.pushName || senderId}: ${text || '<وسائط>'}`);
 
-      if (config.features && text.startsWith(config.prefix)) {
+      // معالجة الأوامر في المجموعات والخاص على حدٍّ سواء
+      if (text && text.startsWith(config.prefix)) {
         await handleCommand({ sock, msg, text, chatId, senderId });
         continue;
       }
 
-      if (config.features.autoReply) {
+      // الردود الآلية (تعمل في الخاص فقط لتجنب الإزعاج في المجموعات)
+      if (config.features.autoReply && !chatId.endsWith('@g.us')) {
         const customReply = resolveCustomReply(text, chatId);
         if (customReply) {
           await sock.sendMessage(chatId, { text: customReply }, { quoted: msg });

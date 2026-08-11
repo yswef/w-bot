@@ -5,11 +5,14 @@ const config = require('../config');
 const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-  const isOwner = senderId.includes(config.ownerNumber) || senderId === config.ownerNumber;
+  // التحقق من صلاحية المالك - يشمل المالك الرئيسي والأدمن الثاني
+  const admins = config.adminNumbers || [config.ownerNumber];
+  const isOwner = admins.some(a => a && senderId.replace(/\D/g, '').includes(a));
   if (!isOwner) {
-    await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر مخصص للمالك فقط.' }, { quoted: msg });
+    await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر مخصص للمسؤولين فقط.' }, { quoted: msg });
     return;
   }
+
 
   if (commandKey === 'رد') {
     const [keyword, ...replyParts] = args;
