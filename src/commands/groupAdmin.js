@@ -3,6 +3,7 @@
 // =============================================
 
 const config = require('../config');
+const { setChatSetting } = require('../database/db');
 
 // التحقق من صلاحيات المشرف داخل المجموعة
 async function isGroupAdmin(sock, chatId, senderId) {
@@ -145,6 +146,24 @@ module.exports = async function groupAdminCommand({ sock, msg, args, chatId, sen
         } catch (err) {
             await sock.sendMessage(chatId, { text: '⚠️ تعذر جلب المعلومات.' }, { quoted: msg });
         }
+        return;
+    }
+
+    // ===== حماية الروابط =====
+    if (commandKey === 'منع-الروابط' || commandKey === 'antilink') {
+        if (!adminOrOwner) return await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمشرفين فقط.' }, { quoted: msg });
+        const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
+        setChatSetting(chatId, 'anti_link', enable);
+        await sock.sendMessage(chatId, { text: enable ? '🛡️ تم تفعيل منع الروابط! سيف أستا سيحطم أي رابط غريب!' : '🔓 تم إيقاف منع الروابط.' }, { quoted: msg });
+        return;
+    }
+
+    // ===== إعداد الترحيب =====
+    if (commandKey === 'ترحيب' || commandKey === 'welcome') {
+        if (!adminOrOwner) return await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر للمشرفين فقط.' }, { quoted: msg });
+        const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
+        setChatSetting(chatId, 'welcome_enabled', enable);
+        await sock.sendMessage(chatId, { text: enable ? '🎉 تم تفعيل بطاقات الترحيب السحرية بالانضمام للجروب!' : '🚫 تم إيقاف الترحيب.' }, { quoted: msg });
         return;
     }
 };

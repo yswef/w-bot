@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting } = require('../database/db');
+const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings } = require('../database/db');
+const { createWelcomeCard } = require('../utils/welcomeCard');
 const config = require('../config');
 const logger = require('../utils/logger');
 const handleCommand = require('./commandHandler');
@@ -59,19 +60,27 @@ function resolveCustomReply(text, chatId) {
 }
 
 async function handleWelcomeMessage(msg, sock, chatId) {
-  const welcome = getWelcomeMessage(chatId);
-  if (!welcome || welcome.enabled !== 1) return;
+  const settings = getChatSettings(chatId);
+  if (settings.welcome_enabled !== 1) return;
 
-  const text = welcome.message || 'مرحباً بك في القروب! 🌸🤖';
-  try {
-    if (welcome.image_path && fs.existsSync(welcome.image_path)) {
-      const buffer = fs.readFileSync(welcome.image_path);
-      await sock.sendMessage(chatId, { image: buffer, caption: text });
-    } else {
-      await sock.sendMessage(chatId, { text });
+  const stubType = msg.message?.messageStubType;
+  const participant = msg.message?.messageStubParameters?.[0];
+
+  if ((stubType === 27 || stubType === 28) && participant) {
+    try {
+      const userName = participant.split('@')[0];
+      let pfp;
+      try {
+        pfp = await sock.profilePictureUrl(participant, 'image');
+      } catch {
+        pfp = null;
+      }
+
+      const buffer = await createWelcomeCard(userName, pfp);
+      await sock.sendMessage(chatId, { image: buffer, caption: 'أهلاً وسهلاً بك في مجموعة أستا ساما! نأمل ألا تختفي إرادتك للمشاركة! 🍀⚔️' });
+    } catch (err) {
+      logger.warn('Failed to send canvas welcome message: ' + err.message);
     }
-  } catch (err) {
-    logger.warn('Failed to send welcome message: ' + err.message);
   }
 }
 
@@ -106,6 +115,19 @@ async function handleIncomingMessages({ messages }, sock) {
           await sock.sendMessage(chatId, { text: '🏋️ أستا يتدرب الان ليصبح اقوى، قومو بالدعاء له! الإصرار لا يموت! 💥' }, { quoted: msg });
         }
         continue;
+      }
+
+      // 🛡️ حماية ضد الروابط (Anti-Link)
+      if (chatId.endsWith('@g.us') && !msg.key.fromMe) {
+        const chatSettings = getChatSettings(chatId);
+        if (chatSettings.anti_link === 1 && !isOwner) {
+          const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b/gi;
+          if (linkRegex.test(text)) {
+            await sock.sendMessage(chatId, { text: '⚔️ أستا لن يسمح بنشر سحر الأعداء في هذا الجروب! روابط ممنوعة!' }, { quoted: msg });
+            try { await sock.sendMessage(chatId, { delete: msg.key }); } catch (e) { }
+            continue; // Stop processing this message
+          }
+        }
       }
 
       // تسجيل الوسائط في مجلد محلي مؤقت
