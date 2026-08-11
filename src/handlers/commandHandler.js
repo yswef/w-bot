@@ -30,6 +30,10 @@ const commands = {
   مقص: require('../commands/games'),
   تخمين: require('../commands/games'),
   اخمن: require('../commands/games'),
+  سؤال: require('../commands/games'),
+  trivia: require('../commands/games'),
+  جواب: require('../commands/games'),
+  answer: require('../commands/games'),
 
   // --- أوامر إسلامية ---
   آية: require('../commands/islamic'),
