@@ -11,7 +11,7 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
-const startDashboard = require('./web/dashboard');
+// const startDashboard = require('./web/dashboard');
 
 const activeBots = new Map();
 let dashboardStarted = false;
@@ -56,21 +56,21 @@ async function startBot(sessionName = 'default') {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      logger.info(`[${normalizedName}] امسح كود QR التالي للربط:`);
+      logger.info(`[${normalizedName}] Scan the QR code below to connect:`);
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      logger.warn(`[${normalizedName}] انقطع الاتصال. إعادة اتصال؟ ${shouldReconnect}`);
+      logger.warn(`[${normalizedName}] Connection closed. Reconnect? ${shouldReconnect}`);
       if (shouldReconnect) {
         setTimeout(() => startBot(normalizedName), 3000);
       } else {
-        logger.error(`[${normalizedName}] تم تسجيل الخروج. امسح جلسة ${normalizedName} أو استخدم أمر إعادة الربط.`);
+        logger.error(`[${normalizedName}] Logged out. Delete session ${normalizedName} or use reconnect command.`);
       }
     } else if (connection === 'open') {
-      logger.info(`[${normalizedName}] ✅ تم الاتصال بواتساب بنجاح.`);
+      logger.info(`[${normalizedName}] ✅ Connected to WhatsApp successfully.`);
     }
   });
 
@@ -80,10 +80,10 @@ async function startBot(sessionName = 'default') {
 
   activeBots.set(normalizedName, sock);
 
-  if (!dashboardStarted) {
-    startDashboard();
-    dashboardStarted = true;
-  }
+  // if (!dashboardStarted) {
+  //     dashboardStarted = true;
+  //     startDashboard();
+  //   }
 
   if (normalizedName === getConfiguredSessionNames()[0]) {
     startScheduler(sock);

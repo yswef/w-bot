@@ -1,28 +1,37 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage } = require('../database/db');
+const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings, getMessage, getCustomReactions } = require('../database/db');
+const { createWelcomeCard } = require('../utils/welcomeCard');
 const config = require('../config');
 const logger = require('../utils/logger');
 const handleCommand = require('./commandHandler');
+// دالة التحقق من إيقاف البوت في مجموعة معينة (safe import)
+let isBotDisabled;
+try { isBotDisabled = require('../commands/utils').isBotDisabled; }
+catch (e) { isBotDisabled = () => false; }
 
-const AUTO_REPLIES = {
-  سلام: 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
-  مرحبا: 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
-  هلا: 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
-  صباح: 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
-  مساء: 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
-  يوسف: 'يا عيون يوسف، أنت كيف الحال؟ 🤖🍀',
-  شكرا: 'العفو! في خدمتك دائماً ✨🤖🍀',
-  مشكور: 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
-  يعطيك: 'الله يعافيك ويسلمك! ✨🤖🍀',
-  تسلم: 'الله يسلمك ويحفظك ✨🤖🍀',
-  '.': 'يوسف قد يبدو متصلاً لكنه يشتغل الآن (رد آلي 🤖🍀)',
-  'من أنت': 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
-  'انا استا ساما': 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
-  'معلمك': 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
-  'بلك كلوفر': 'بلوك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
-  'انمي': 'أنا أحب الأنمي، وأحاول أن أكون بوتًا أنيقًا وذكيًا مثل عالم بلاك كلوفر 🖤',
+
+// 1. الكلمات التي تتطلب مطابقة تامة (يجب أن تكون الرسالة بالضبط نفس الكلمة)
+const EXACT_REPLIES = {
+  "سلام": 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
+  "مرحبا": 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
+  "هلا": 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
+  "من أنت": 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
+  "انا استا ساما": 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
+};
+
+// 2. الكلمات التي تعمل إذا كانت موجودة في أي مكان داخل النص (مطابقة جزئية)
+const CONTAINS_REPLIES = {
+  "صباح": 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
+  "مساء": 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
+  "شكرا": 'العفو! في خدمتك دائماً ✨🤖🍀',
+  "مشكور": 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
+  "يعطيك": 'الله يعافيك ويسلمك! ✨🤖🍀',
+  "تسلم": 'الله يسلمك ويحفظك ✨🤖🍀',
+  "معلمك": 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
+  "بلاك كلوفر": 'بلاك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
+  "انمي": 'أنا أحب الأنمي، وأحاول أن أكون بوت لا يستسلم مثل معلمي يوسف 🖤'
 };
 
 function extractText(message) {
@@ -54,38 +63,101 @@ function resolveCustomReply(text, chatId) {
 }
 
 async function handleWelcomeMessage(msg, sock, chatId) {
-  const welcome = getWelcomeMessage(chatId);
-  if (!welcome || welcome.enabled !== 1) return;
+  const settings = getChatSettings(chatId);
+  if (settings.welcome_enabled !== 1) return;
 
-  const text = welcome.message || 'مرحباً بك في القروب! 🌸🤖';
-  try {
-    if (welcome.image_path && fs.existsSync(welcome.image_path)) {
-      const buffer = fs.readFileSync(welcome.image_path);
-      await sock.sendMessage(chatId, { image: buffer, caption: text });
-    } else {
-      await sock.sendMessage(chatId, { text });
+  const stubType = msg.message?.messageStubType;
+  const participant = msg.message?.messageStubParameters?.[0];
+
+  if ((stubType === 27 || stubType === 28) && participant) {
+    try {
+      const userName = participant.split('@')[0];
+      let pfp;
+      try {
+        pfp = await sock.profilePictureUrl(participant, 'image');
+      } catch {
+        pfp = null;
+      }
+
+      const buffer = await createWelcomeCard(userName, pfp);
+      await sock.sendMessage(chatId, { image: buffer, caption: 'أهلاً وسهلاً بك في مجموعة أستا ساما! نأمل ألا تختفي إرادتك للمشاركة! 🍀⚔️' });
+    } catch (err) {
+      logger.warn('Failed to send canvas welcome message: ' + err.message);
     }
-  } catch (err) {
-    logger.warn('تعذر إرسال رسالة ترحيب: ' + err.message);
   }
 }
 
 async function handleIncomingMessages({ messages }, sock) {
   for (const msg of messages) {
     try {
+      // تخطي الرسائل الفارغة
       if (!msg.message) continue;
+      // تخطي رسائل البوت نفسه
       if (msg.key.fromMe) continue;
 
       const chatId = msg.key.remoteJid;
-      const senderId = msg.key.participant || chatId;
+      // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
+      const senderId = msg.key.participant || msg.key.remoteJid;
+
+      // منع تعديل الرسائل
+      const protocolType = msg.message?.protocolMessage?.type;
+      if (protocolType === 14) {
+        await sock.sendMessage(chatId, { text: '⚔️ أستا لاحظ أنك قمت بتعديل رسالتك! لا يمكنك التراجع عن كلماتك في قتال السحر!' }, { quoted: msg });
+
+        const originalId = msg.message.protocolMessage.key.id;
+        const oldMsg = getMessage(originalId);
+        if (oldMsg && oldMsg.text_content) {
+          await sock.sendMessage(chatId, { text: `لقد قلت سابقاً:\n"${oldMsg.text_content}"\n\nأستا لا ينسى ولا يتراجع!` }, { quoted: msg });
+        }
+        continue;
+      }
+
       const text = extractText(msg.message);
       const msgType = Object.keys(msg.message)[0];
 
-      const isSystemEvent = msg.message?.messageStubType === 27 || msg.message?.messageStubType === 28;
-      if (isSystemEvent) {
+      // معالجة أحداث الانضمام للمجموعات (ترحيب تلقائي)
+      const stubType = msg.message?.messageStubType;
+      if (stubType === 27 || stubType === 28) {
         await handleWelcomeMessage(msg, sock, chatId);
+        continue; // هذا حدث نظامي، ليس رسالة عادية
       }
 
+      // تخطي المعالجة إذا كان البوت مُوقفاً في هذه المحادثة
+      if (isBotDisabled(chatId)) continue;
+
+      const isMaintenance = getGlobalSetting('maintenance_mode') === '1';
+      const isOwner = senderId === (config.ownerNumber + '@s.whatsapp.net');
+      if (isMaintenance && !isOwner) {
+        if (text && text.startsWith(config.prefix)) {
+          await sock.sendMessage(chatId, { text: '🏋️ أستا يتدرب الان ليصبح اقوى، قومو بالدعاء له! الإصرار لا يموت! 💥' }, { quoted: msg });
+        }
+        continue;
+      }
+
+      // 🛡️ حماية ضد الروابط (Anti-Link)
+      if (chatId.endsWith('@g.us') && !msg.key.fromMe) {
+        const chatSettings = getChatSettings(chatId);
+        if (chatSettings.anti_link === 1 && !isOwner) {
+          const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b/gi;
+          if (linkRegex.test(text)) {
+            await sock.sendMessage(chatId, { text: '⚔️ أستا لن يسمح بنشر سحر الأعداء في هذا الجروب! روابط ممنوعة!' }, { quoted: msg });
+            try { await sock.sendMessage(chatId, { delete: msg.key }); } catch (e) { }
+            continue; // Stop processing this message
+          }
+        }
+      }
+
+      // التفاعلات المخصصة (Auto-Reactions)
+      if (text) {
+        const reactions = getCustomReactions();
+        for (const rx of reactions) {
+          if (text.includes(rx.keyword)) {
+            await sock.sendMessage(chatId, { react: { text: rx.emoji, key: msg.key } });
+          }
+        }
+      }
+
+      // تسجيل الوسائط في مجلد محلي مؤقت
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
         try {
@@ -96,10 +168,11 @@ async function handleIncomingMessages({ messages }, sock) {
           mediaPath = path.join(dir, `${msg.key.id}.${ext}`);
           fs.writeFileSync(mediaPath, buffer);
         } catch (e) {
-          logger.warn('تعذر تحميل الوسائط: ' + e.message);
+          logger.warn('Failed to download media: ' + e.message);
         }
       }
 
+      // حفظ الرسالة وآخر ظهور
       saveMessage({
         id: msg.key.id,
         chat_id: chatId,
@@ -113,13 +186,16 @@ async function handleIncomingMessages({ messages }, sock) {
 
       saveLastSeen({ chatId, senderId });
 
-      logger.info(`[رسالة] ${msg.pushName || senderId}: ${text || '<وسائط>'}`);
+      const chatType = chatId.endsWith('@g.us') ? '[Group]' : '[Private]';
+      logger.info(`${chatType} ${msg.pushName || senderId}: ${text || '<media>'}`);
 
-      if (config.features && text.startsWith(config.prefix)) {
+      // معالجة الأوامر في المجموعات والخاص على حدٍّ سواء
+      if (text && text.startsWith(config.prefix)) {
         await handleCommand({ sock, msg, text, chatId, senderId });
         continue;
       }
 
+      // الردود الآلية (تعمل في الخاص والمجموعات)
       if (config.features.autoReply) {
         const customReply = resolveCustomReply(text, chatId);
         if (customReply) {
@@ -127,15 +203,27 @@ async function handleIncomingMessages({ messages }, sock) {
           continue;
         }
 
-        for (const [keyword, reply] of Object.entries(AUTO_REPLIES)) {
+        const trimmedText = text.trim();
+
+        // أولاً: التحقق من المطابقة التامة (Exact Match)
+        if (EXACT_REPLIES[trimmedText]) {
+          await sock.sendMessage(chatId, { text: EXACT_REPLIES[trimmedText] }, { quoted: msg });
+          continue;
+        }
+
+        // ثانياً: التحقق من المطابقة الجزئية (Contains Match)
+        let replied = false;
+        for (const [keyword, reply] of Object.entries(CONTAINS_REPLIES)) {
           if (text.includes(keyword)) {
             await sock.sendMessage(chatId, { text: reply }, { quoted: msg });
+            replied = true;
             break;
           }
         }
+        if (replied) continue;
       }
     } catch (err) {
-      logger.error('خطأ في معالجة رسالة: ' + err.message);
+      logger.error('Error handling message: ' + err.message);
     }
   }
 }

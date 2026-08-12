@@ -5,11 +5,14 @@ const config = require('../config');
 const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-  const isOwner = senderId.includes(config.ownerNumber) || senderId === config.ownerNumber;
+  // التحقق من صلاحية المالك - يشمل المالك الرئيسي والأدمن الثاني
+  const admins = config.adminNumbers || [config.ownerNumber];
+  const isOwner = admins.some(a => a && senderId.replace(/\D/g, '').includes(a));
   if (!isOwner) {
-    await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر مخصص للمالك فقط.' }, { quoted: msg });
+    await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر مخصص للمسؤولين فقط.' }, { quoted: msg });
     return;
   }
+
 
   if (commandKey === 'رد') {
     const [keyword, ...replyParts] = args;
@@ -20,6 +23,30 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
     }
     saveCustomReply({ keyword, reply, scope: chatId.endsWith('@g.us') ? 'group' : 'private' });
     await sock.sendMessage(chatId, { text: `✅ تم حفظ رد مخصص لكلمة: ${keyword}` }, { quoted: msg });
+    return;
+  }
+
+  if (commandKey === 'تفاعل') {
+    const [keyword, emoji] = args;
+    if (!keyword || !emoji) {
+      await sock.sendMessage(chatId, { text: 'استخدم: !تفاعل <الكلمة> <الايموجي>' }, { quoted: msg });
+      return;
+    }
+    const { saveCustomReaction } = require('../database/db');
+    saveCustomReaction({ keyword, emoji });
+    await sock.sendMessage(chatId, { text: `✅ تم إضافة التفاعل ${emoji} للكلمة: ${keyword}` }, { quoted: msg });
+    return;
+  }
+
+  if (commandKey === 'حذفتفاعل') {
+    const id = Number(args[0]);
+    if (!id) {
+      await sock.sendMessage(chatId, { text: 'استخدم: !حذفتفاعل <id>' }, { quoted: msg });
+      return;
+    }
+    const { deleteCustomReaction } = require('../database/db');
+    deleteCustomReaction(id);
+    await sock.sendMessage(chatId, { text: `✅ تم حذف التفاعل رقم ${id}` }, { quoted: msg });
     return;
   }
 

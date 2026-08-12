@@ -1,217 +1,100 @@
-# 📱 مشروع بوت واتساب مجاني بالكامل
+# 📱 Asta WhatsApp Bot
 
-توثيق شامل: من الفكرة إلى التشغيل 24 ساعة، بدون أي اشتراك مدفوع.
-
----
-
-## ⚠️ اقرأ هذا أولاً
-
-- المكتبات المستخدمة هنا **غير رسمية** (تحاكي واتساب ويب). هذا يخالف شروط استخدام واتساب، والنتيجة المحتملة هي **حظر الرقم**.
-- **استخدم رقم تجربة، مو رقمك الأساسي** (أنت فعلاً ناوي كذا، تمام 👍).
-- قلّل من: الرسائل الجماعية السريعة، الردود الآلية الفورية جداً (0 ثانية)، إنشاء ملصقات بكمية جنونية بوقت قصير.
-- هذا المشروع للتعلم والاستخدام الشخصي/الصغير، مو لبناء منتج تجاري ضخم على آلاف الأرقام.
+A powerful, fully-featured WhatsApp bot inspired by Asta from Black Clover! It includes robust logging, dynamic games, auto-reminders, anime updates, and advanced group management.
 
 ---
 
-## 📋 المميزات المُنفّذة في هذا المشروع
+## ⚠️ Important Note
 
-| الميزة | الحالة | ملاحظات |
-|---|---|---|
-| تسجيل كل الرسائل الواردة | ✅ جاهزة | تُخزَّن في SQLite محلي |
-| كشف حذف الرسائل وإعادة إرسالها | ✅ جاهزة | يشمل النص والوسائط (صور/فيديو/صوت) |
-| ردود آلية بكلمات مفتاحية | ✅ جاهزة | تقدر تضيف كلمات جديدة بسهولة |
-| نظام أوامر مبرمجة (`!ping`, `!sticker`...) | ✅ جاهزة | هيكلة قابلة للتوسيع، كل أمر بملف مستقل |
-| إنشاء ملصقات (ثابتة ومتحركة) | ✅ جاهزة | من أي صورة/فيديو تردّ عليه |
-| تغيير "حقوق" الملصق (اسم الباك + المؤلف) | ✅ جاهزة | يتغير من ملف `.env` |
-| فعاليات مجدولة (رسائل بوقت محدد) | ✅ جاهزة | باستخدام cron |
-| إعادة اتصال تلقائي عند الانقطاع | ✅ جاهزة | مهمة جداً للتشغيل المستمر |
-
-### 💡 ميزات إضافية شائعة تقدر تضيفها لاحقاً (مو منفّذة بعد)
-هذي أشهر الأشياء اللي غالبية بوتات واتساب مفتوحة المصدر يضيفونها، ترتيبها من الأسهل للأصعب:
-
-1. **أوامر تنزيل** (يوتيوب/تيك توك/إنستغرام) عبر مكتبات مثل `yt-dlp`
-2. **ألعاب جماعية بسيطة** داخل القروبات (تخمين كلمة، حساب سريع)
-3. **إدارة قروبات**: طرد/ترقية أدمن، كتم أعضاء، ترحيب تلقائي بالأعضاء الجدد
-4. **ردود ذكية عبر AI** (ربط رسائل المستخدم بـ API لموديل لغوي بدل الردود الثابتة)
-5. **كشف "شوهد آخر مرة" وتنبيهات الحالة (status/story)** لأشخاص معينين
-6. **حفظ ونسخ حالات (Status) الآخرين تلقائياً**
-7. **بث جماعي (Broadcast)** لعدة جهات اتصال دفعة وحدة (احذر يزيد خطر الحظر)
-8. **لوحة تحكم ويب** (Dashboard) بسيطة لمتابعة الرسائل بدل قراءة قاعدة البيانات يدوياً
-9. **نظام تذاكر/دعم فني** يحوّل الرسائل لموظفين مختلفين
+- This bot uses unofficial libraries (Baileys) to connect to WhatsApp. This violates WhatsApp's Terms of Service and might result in a **banned number**.
+- **Use a test number, not your primary one.**
+- This project is for personal use and learning purposes. Do not use it for massive spam or commercial broadcasting.
 
 ---
 
-## 🧠 الفكرة التقنية باختصار
+## 📋 Features
 
-واتساب ما يعطي أفراد الناس API رسمي مجاني. البديل: مكتبة **Baileys** تتصل بواتساب بنفس الطريقة اللي يتصل فيها متصفح "واتساب ويب" (تبييِن كأنك فاتح واتساب ويب على جهاز، وتربطه برقمك عبر مسح QR Code من داخل تطبيق واتساب بجوالك، بالضبط زي ما تربط لابتوب).
-
-بعد الربط، البوت "يسمع" كل الأحداث (رسالة جديدة، رسالة انحذفت...) ويقدر يرد أو يسوي أي إجراء برمجي.
-
-اخترت **Baileys** بدل `whatsapp-web.js` لأن Baileys يتصل مباشرة (WebSocket) بدون فتح متصفح كروم كامل في الخلفية، يعني استهلاك ذاكرة أقل بكثير (~50 ميجا مقابل 400-500+ ميجا)، وهذا مهم جداً لأنك رح تشغّله على سيرفر مجاني بموارد محدودة.
-
----
-
-## 🗂️ هيكل المشروع
-
-```
-whatsapp-bot/
-├── package.json              # قائمة المكتبات المطلوبة
-├── .env.example               # نموذج الإعدادات (انسخه لـ .env)
-├── .gitignore
-├── README.md                  # هذا الملف
-├── bot.db                     # (يُنشأ تلقائياً) قاعدة بيانات الرسائل
-├── session/                    # (يُنشأ تلقائياً) بيانات ربط الجلسة مع واتساب
-├── media_store/                 # (يُنشأ تلقائياً) نسخ محفوظة من الصور/الفيديوهات
-└── src/
-    ├── index.js                # نقطة البداية: الاتصال بواتساب + ربط كل شيء
-    ├── config.js                # قراءة الإعدادات من .env
-    ├── database/
-    │   └── db.js                # إعداد SQLite + دوال الحفظ/القراءة
-    ├── handlers/
-    │   ├── messageHandler.js    # يستقبل كل رسالة: يسجلها + يرد تلقائياً + يمررها للأوامر
-    │   ├── deleteHandler.js     # يكتشف حذف الرسائل ويعيد إرسالها
-    │   └── commandHandler.js    # يوزّع الأوامر (!ping, !sticker...) على ملفاتها
-    ├── commands/
-    │   ├── ping.js               # مثال أمر بسيط
-    │   ├── info.js                # قائمة الأوامر المتاحة
-    │   └── sticker.js            # صانع الملصقات (ثابت/متحرك)
-    ├── scheduler/
-    │   └── events.js             # الفعاليات المجدولة (رسائل بوقت محدد)
-    └── utils/
-        └── logger.js             # طباعة سجلات منظمة في الطرفية
-```
-
-**لماذا هالهيكلة؟**
-- كل أمر جديد = ملف جديد بمجلد `commands/` بدون ما تلمس باقي الكود
-- المعالجات (`handlers`) منفصلة عن منطق الاتصال (`index.js`) عشان يسهل تتبع كل ميزة لحالها
-- قاعدة بيانات SQLite ملف واحد بسيط، ما يحتاج تثبيت سيرفر قاعدة بيانات منفصل
+- **Asta Persona**: The bot replies varying between Asta's fiery determination and helpful information!
+- **Message Logging**: Automatically saves all messages to a local SQLite database (`bot.db`).
+- **Deleted Message Recovery**: Automatically catches deleted messages and re-sends them.
+- **Sticker Maker**: Converts images/videos into stickers seamlessly (`!ملصق`).
+- **Games & Anime Tools**: Play anime trivia (`!خمن`), get random characters (`!انمي`, `!زوجني`), search anime info (`!بحث-انمي`), or get anime quotes. 
+  - *Images are fetched safely using the official free Jikan API.*
+- **Islamic Tools**: View Quranic verses and athkar, or subscribe groups to daily scheduled verses and athkar.
+- **Group Management**: Anti-link protection (`!منع-الروابط`), custom canvas welcome cards (`!ترحيب`), promote/demote/kick, and scheduled events.
+- **Maintenance Mode**: An owner-exclusive toggle (`!صيانة`) to train the bot without disturbing group members.
+- **Resilient Media Fetching**: Bypasses hotlinking restrictions safely with strict timeouts and validations.
 
 ---
 
-## 🚀 خطوات التشغيل من الصفر
+## 🚀 Setup Instructions
 
-### 1) تثبيت المتطلبات الأساسية
-- ثبّت **Node.js** إصدار 18 أو أحدث من [nodejs.org](https://nodejs.org)
-- تأكد من التثبيت: افتح الطرفية واكتب:
-  ```bash
-  node -v
-  npm -v
-  ```
+### 1) Prerequisites
+- **Node.js** version 18 or newer
+- Git
 
-### 2) تجهيز المشروع
+### 2) Installation
 ```bash
+git clone <your_repo_url>
 cd whatsapp-bot
 npm install
 cp .env.example .env
 ```
-افتح `.env` وعدّل:
-- `STICKER_PACK_NAME` و `STICKER_AUTHOR_NAME` → اسم الملصقات اللي تبيه
-- `OWNER_NUMBER` → رقمك
-- `COMMAND_PREFIX` → الرمز اللي تحب الأوامر تبدأ فيه (افتراضياً `!`)
+Edit `.env` and configure your variables (such as `OWNER_NUMBER` and `COMMAND_PREFIX`).
 
-### 3) أول تشغيل وربط الرقم
+### 3) Running the Bot
 ```bash
 npm start
 ```
-- بتطلع لك صورة **QR Code** داخل الطرفية
-- من جوالك: افتح واتساب > الإعدادات > **الأجهزة المرتبطة** > **ربط جهاز** > امسح الكود
-- بعد الربط، بتتحفظ بيانات الجلسة في مجلد `session/` فما تحتاج تمسح الكود كل مرة
+- Scan the QR code shown in the terminal using your WhatsApp **Linked Devices**.
+- Once connected, the session is stored locally (no need to scan upon every restart).
 
-### 4) تجربة البوت
-- ابعث "مرحبا" من رقم ثاني للرقم المربوط → لازم يرد تلقائياً
-- ابعث `!ping` → يرد بسرعة الاتصال
-- رُد على صورة واكتب `!sticker` → يحولها ملصق
-- احذف أي رسالة بعثتها ("حذف لدى الجميع") → البوت يعيد إرسالها فوراً
-
----
-
-## 🌐 استضافة البوت مجاناً 24 ساعة
-
-هذا أصعب جزء فعلياً. جمعت لك أفضل الخيارات المجانية الحقيقية:
-
-### الخيار 1: Oracle Cloud Always Free ⭐ (الأقوى)
-- تقدر تاخذ سيرفر (VPS) **مجاني للأبد** بمواصفات ممتازة (حالياً بعد تخفيض حصل يونيو 2026: تقريباً 2 أنوية معالج و12 جيجا رام دائمة التشغيل، بدل 4 أنوية/24 جيجا سابقاً — والمواصفات تختلف حسب توفر السعة بمنطقتك).
-- **العيوب**: التسجيل فيه صعب شوي (يتطلب بطاقة بنكية للتحقق فقط بدون خصم فعلي، ونظام مكافحة الاحتيال يرفض بعض الحسابات من أول مرة). إعداد الشبكة أول مرة معقد نسبياً.
-- **الأنسب لك** لأنه الوحيد اللي يعطيك تشغيل حقيقي دائم 24/7 بدون أي حد زمني.
-- خطوات عامة: أنشئ حساب → أنشئ Instance بنوع `VM.Standard.A1.Flex` (Ampere ARM) → اختر Ubuntu → فعّل عنوان IP عام → اتصل عبر SSH → ثبّت Node.js → ارفع مشروعك → شغّله بـ PM2 (شرح تحت).
-
-### الخيار 2: جوال أندرويد قديم + Termux (الأسهل عملياً)
-- لو عندك جوال أندرويد قديم مو مستخدم، تقدر تثبت تطبيق **Termux** (مجاني من F-Droid)، وتشغّل Node.js والبوت عليه مباشرة.
-- يحتاج بس: الجوال موصول كهرباء دائم + واي فاي مستقر، وتعطيل توفير الطاقة عن التطبيق.
-- هذا الخيار **الأكثر استخداماً فعلياً** بين مطوري بوتات واتساب الهواة لأنه بلا تعقيد سيرفرات سحابية.
-
-### الخيار 3: Railway / Render (طبقتها المجانية محدودة)
-- سهلة الإعداد جداً (تربط GitHub وتنشر بضغطة).
-- **المشكلة**: الطبقة المجانية عادة "تنيّم" المشروع بعد فترة خمول أو تعطيه ساعات تشغيل شهرية محدودة، وهذا يقطع اتصال واتساب باستمرار — غير مناسب لبوت لازم يفضل متصل دائماً.
-- تصلح للتجربة السريعة، مو للتشغيل الدائم.
-
-### 📌 توصيتي
-ابدأ بتجربة البوت محلياً على جهازك، وبعد ما تتأكد كل شي شغّال زي ما تبي، انقله على **Oracle Cloud** إذا قدرت تسجّل بنجاح، أو **Termux على جوال قديم** كخيار احتياطي أسهل وأضمن.
-
----
-
-## 🔧 تشغيل مستمر بدون توقف (PM2)
-
-لما تكون على أي سيرفر (Oracle أو غيره)، لا تشغّل البوت بـ `npm start` مباشرة لأنه بيتوقف إذا قفلت الطرفية. استخدم **PM2** (مدير عمليات مجاني):
-
+### 4) Deployment Update
+Use the included `update.sh` script to fetch the latest changes efficiently on your server:
 ```bash
-npm install -g pm2
-pm2 start src/index.js --name whatsapp-bot
-pm2 save
-pm2 startup     # يخليه يشتغل تلقائياً حتى لو أعدت تشغيل السيرفر
-```
-
-أوامر مفيدة:
-```bash
-pm2 logs whatsapp-bot     # متابعة السجلات لحظياً
-pm2 restart whatsapp-bot  # إعادة تشغيل
-pm2 stop whatsapp-bot     # إيقاف
+bash update.sh
 ```
 
 ---
 
-## 🧩 كيف توسّع المشروع
+## 🛡️ Session Management & Deployment Warnings
 
-### إضافة أمر جديد
-1. أنشئ ملف جديد في `src/commands/مثلا.js`
-2. صيغته:
-   ```js
-   module.exports = async function myCommand({ sock, msg, args, chatId }) {
-     await sock.sendMessage(chatId, { text: 'ردي هنا' }, { quoted: msg });
-   };
-   ```
-3. سجّله في `src/handlers/commandHandler.js` داخل كائن `commands`
+If you deploy this bot on a platform like **Railway, Render, or Heroku**, you might face session issues (like `Connection Closed` or `MessageCounterError`). This happens because the `session/` folder is deleted on every restart.
 
-### إضافة رد تلقائي جديد
-عدّل كائن `AUTO_REPLIES` في `src/handlers/messageHandler.js`
+**🔴 Do NOT save the session to GitHub automatically!**
+WhatsApp updates its security keys with almost every message sent or received. Pushing the session to GitHub automatically will rapidly exhaust GitHub API limits and bloat your repository.
 
-### إضافة فعالية مجدولة جديدة
-أضف عنصر جديد في مصفوفة `events` داخل `src/scheduler/events.js`
+**✅ Recommended Solutions:**
+1. **Persistent Volumes:** If your host supports disks/volumes (like Railway Volumes), mount it to the `/session` directory.
+2. **MongoDB Auth State:** Modify `sessionManager.js` to use `useMongoDBAuthState` (supported natively by Baileys) to store credentials in a free cloud database like MongoDB Atlas. (Highly recommended for cloud).
 
 ---
 
-## ❓ أسئلة متوقعة
+## 🤖 Prompt for the Next AI Model
 
-**ليش أحياناً ما يوصلني كود QR؟**
-تأكد إن جهازك ما فيه اتصال إنترنت مو مستقر، وجرب تحذف مجلد `session/` وتعيد التشغيل.
+*(Copy and paste this section to the next AI you work with so it understands the project instantly)*
 
-**البوت انفصل بعد فترة، ليش؟**
-غالباً بسبب: انقطاع نت السيرفر، أو واتساب سجّل خروج الجلسة (نادر لو تجاوزت حد استخدام مريب). كود `index.js` معمول عنده إعادة اتصال تلقائي، لكن لو صار "تسجيل خروج" فعلي لازم تربط QR من جديد.
+```text
+You are an expert full-stack developer working on the "Asta WhatsApp Bot".
 
-**هل أقدر أشغّل أكثر من رقم بنفس الوقت؟**
-نعم، بس كل رقم يحتاج مجلد `session` منفصل وعملية Node.js منفصلة (أو تعدّل الكود يدعم multi-session).
+Project Tech Stack: Node.js, @whiskeysockets/baileys, better-sqlite3 (SQLite).
+Key Files: 
+- `src/index.js` (Entry point)
+- `src/sessionManager.js` (Handles Baileys sessions & connection)
+- `src/handlers/messageHandler.js` (Routes commands)
+- `src/commands/*.js` (Contains all features, separated by category)
+- `bot.db` (SQLite DB for state, scheduled messages, settings)
+
+Current Status & Important Notes:
+1. The bot is fully functional with scheduling, anime APIs (Jikan), and games.
+2. The user has had issues with Baileys session states (`MessageCounterError` and `Status 428 Precondition Required`) when deploying/restarting because local files wipe. Do NOT suggest syncing the session to GitHub. Instead, if session persistence is requested, guide the user to set up a Railway Volume, OR implement Baileys `useMongoDBAuthState` to store credentials in MongoDB Atlas.
+3. Keep changes modular. Asta's "loud and energetic" persona is a key requirement for responses.
+4. Images in anime functions (`!انمي`, `!زوجني`) now use `https://api.jikan.moe/v4/random/characters` and its image url successfully.
+
+Your goal is to continue development seamlessly without breaking existing sqlite mechanisms. Always refer to `src/database/db.js` for existing schemas before creating new state mechanisms.
+```
 
 ---
 
-## � إدارة الجلسات وإعادة الربط
-
-إذا حذفت الجلسة من جهازك أو أردت تشغيل أكثر من جلسة، يمكنك الآن استخدام:
-
-- `SESSION_NAMES=default,second` لفتح أكثر من جلسة
-- `!جلسات` لعرض الجلسات النشطة
-- `!اعادةربط default` لإعادة ربط جلسة بعد حذفها
-
-المجلدات ستُنشأ تلقائياً داخل `session/` حسب اسم الجلسة.
-
-## �📜 ترخيص
-استخدم هذا المشروع بحرية للتعلم والاستخدام الشخصي. تذكر مخاطر الحظر المذكورة بالأعلى.
+## 📜 License & Usage
+If you want to use this bot, please talk to the owner of this bot.

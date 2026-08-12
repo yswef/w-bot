@@ -4,7 +4,7 @@ const path = require('path');
 const { getRecentChats, getLatestMessageForChat, saveCustomReply, getCustomReplies, deleteCustomReply } = require('../database/db');
 
 function startProfessionalDashboard() {
-  const port = process.env.DASHBOARD_PORT || 3000;
+  const port = process.env.PORT || process.env.DASHBOARD_PORT || 3000;
   const htmlPath = path.join(__dirname, 'index.html');
 
   const server = http.createServer((req, res) => {
@@ -40,8 +40,8 @@ function startProfessionalDashboard() {
     res.end(html);
   });
 
-  server.listen(port, () => {
-    console.log(`Professional dashboard listening on http://localhost:${port}`);
+server.listen(port, '0.0.0.0', () => {
+    console.log(`Professional dashboard listening on port ${port}`);
   });
 }
 
