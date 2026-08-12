@@ -12,23 +12,26 @@ try { isBotDisabled = require('../commands/utils').isBotDisabled; }
 catch (e) { isBotDisabled = () => false; }
 
 
-const AUTO_REPLIES = {
+// 1. الكلمات التي تتطلب مطابقة تامة (يجب أن تكون الرسالة بالضبط نفس الكلمة)
+const EXACT_REPLIES = {
   "سلام": 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
   "مرحبا": 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
   "هلا": 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
+  "من أنت": 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
+  "انا استا ساما": 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
+};
+
+// 2. الكلمات التي تعمل إذا كانت موجودة في أي مكان داخل النص (مطابقة جزئية)
+const CONTAINS_REPLIES = {
   "صباح": 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
   "مساء": 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
-  "يوسف": 'يا عيون يوسف، أنت كيف الحال؟ 🤖🍀',
   "شكرا": 'العفو! في خدمتك دائماً ✨🤖🍀',
   "مشكور": 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
   "يعطيك": 'الله يعافيك ويسلمك! ✨🤖🍀',
   "تسلم": 'الله يسلمك ويحفظك ✨🤖🍀',
-  '.': 'يوسف قد يبدو متصلاً لكنه يشتغل الآن (رد آلي 🤖🍀)',
-  'من أنت': 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
-  'انا استا ساما': 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
-  'معلمك': 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
-  'بلاك كلوفر': 'بلاك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
-  'انمي': 'أنا أحب الأنمي، وأحاول أن أكون بوت لا يستسلم مثل معلمي يوسف 🖤',
+  "معلمك": 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
+  "بلاك كلوفر": 'بلاك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
+  "انمي": 'أنا أحب الأنمي، وأحاول أن أكون بوت لا يستسلم مثل معلمي يوسف 🖤'
 };
 
 function extractText(message) {
@@ -192,20 +195,32 @@ async function handleIncomingMessages({ messages }, sock) {
         continue;
       }
 
-      // الردود الآلية (تعمل في الخاص فقط لتجنب الإزعاج في المجموعات)
-      if (config.features.autoReply && !chatId.endsWith('@g.us')) {
+      // الردود الآلية (تعمل في الخاص والمجموعات)
+      if (config.features.autoReply) {
         const customReply = resolveCustomReply(text, chatId);
         if (customReply) {
           await sock.sendMessage(chatId, { text: customReply }, { quoted: msg });
           continue;
         }
 
-        for (const [keyword, reply] of Object.entries(AUTO_REPLIES)) {
+        const trimmedText = text.trim();
+
+        // أولاً: التحقق من المطابقة التامة (Exact Match)
+        if (EXACT_REPLIES[trimmedText]) {
+          await sock.sendMessage(chatId, { text: EXACT_REPLIES[trimmedText] }, { quoted: msg });
+          continue;
+        }
+
+        // ثانياً: التحقق من المطابقة الجزئية (Contains Match)
+        let replied = false;
+        for (const [keyword, reply] of Object.entries(CONTAINS_REPLIES)) {
           if (text.includes(keyword)) {
             await sock.sendMessage(chatId, { text: reply }, { quoted: msg });
+            replied = true;
             break;
           }
         }
+        if (replied) continue;
       }
     } catch (err) {
       logger.error('Error handling message: ' + err.message);
