@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const ownerNumber = (process.env.OWNER_NUMBER || '').replace(/\D/g, '+967784609423');
+const ownerNumber = (process.env.OWNER_NUMBER || '967784609423').replace(/\D/g, '');
 // رقم الأدمن الثاني المعتمد
 const secondAdminNumber = process.env.SECOND_ADMIN_NUMBER || '967735076371';
 
