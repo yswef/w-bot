@@ -6,19 +6,54 @@
 const https = require('https');
 const { db } = require('../database/db');
 const config = require('../config');
+const logger = require('../utils/logger');
 
-// دالة مساعدة لجلب البيانات
-function fetchJSON(url) {
+// دالة مساعدة لجلب البيانات (مع مهلة زمنية، متابعة التحويلات، وإعادة محاولة عند التقييد 429)
+function fetchJSONOnce(url, timeoutMs = 10000) {
     return new Promise((resolve, reject) => {
-        https.get(url, { headers: { 'User-Agent': 'AstaBot/1.0' } }, res => {
+        const req = https.get(url, { headers: { 'User-Agent': 'AstaBot/1.0', Accept: 'application/json' } }, res => {
+            // متابعة إعادة التوجيه (redirects)
+            if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+                res.resume();
+                return resolve(fetchJSONOnce(res.headers.location, timeoutMs));
+            }
+
             let data = '';
-            res.on('data', chunk => data += chunk);
+            res.on('data', chunk => (data += chunk));
             res.on('end', () => {
-                try { resolve(JSON.parse(data)); }
-                catch (e) { reject(e); }
+                if (res.statusCode === 429) {
+                    const err = new Error('Rate limited (429)');
+                    err.statusCode = 429;
+                    return reject(err);
+                }
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    return reject(new Error(`HTTP ${res.statusCode}`));
+                }
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(new Error('استجابة غير صالحة (JSON parse error): ' + e.message));
+                }
             });
-        }).on('error', reject);
+        });
+        req.on('error', reject);
+        req.setTimeout(timeoutMs, () => {
+            req.destroy(new Error('انتهت مهلة الاتصال (timeout)'));
+        });
     });
+}
+
+async function fetchJSON(url, retries = 2) {
+    try {
+        return await fetchJSONOnce(url);
+    } catch (err) {
+        if (retries > 0 && err.statusCode === 429) {
+            // Jikan API يقيّد الطلبات (3 طلبات/ثانية تقريباً) - ننتظر قليلاً ونعيد المحاولة
+            await new Promise(r => setTimeout(r, 1200));
+            return fetchJSON(url, retries - 1);
+        }
+        throw err;
+    }
 }
 
 // جدول قاعدة بيانات المشتركين في النشرة اليومية للأنمي
@@ -65,7 +100,8 @@ module.exports = async function animeNewsCommand({ sock, msg, args, chatId, send
             await sock.sendMessage(chatId, {
                 text: `📺 *أنميات الموسم الحالي* 🍀\n\n${list}\n\n🔮 استمتع بمشاهدة عالم السحر!`
             }, { quoted: msg });
-        } catch {
+        } catch (err) {
+            logger.error('[animeNews:انميات] ' + err.message);
             await sock.sendMessage(chatId, { text: '⚠️ تعذر جلب قائمة الأنميات، حاول لاحقاً.' }, { quoted: msg });
         }
         return;
@@ -75,7 +111,7 @@ module.exports = async function animeNewsCommand({ sock, msg, args, chatId, send
     if (commandKey === 'بحث-انمي' || commandKey === 'searchanime') {
         const query = args.join(' ');
         if (!query) {
-            await sock.sendMessage(chatId, { text: '⚠️ أرسل اسم الأنمي. مثال: !بحث-انمي Naruto' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: `⚠️ أرسل اسم الأنمي. مثال: ${config.prefix}بحث-انمي Naruto` }, { quoted: msg });
             return;
         }
         await sock.sendMessage(chatId, { text: `🔍 جاري البحث عن: ${query}...` }, { quoted: msg });
@@ -94,7 +130,8 @@ module.exports = async function animeNewsCommand({ sock, msg, args, chatId, send
             } else {
                 await sock.sendMessage(chatId, { text }, { quoted: msg });
             }
-        } catch {
+        } catch (err) {
+            logger.error('[animeNews:بحث-انمي] ' + err.message);
             await sock.sendMessage(chatId, { text: `⚠️ لم يُعثر على نتائج لـ "${query}"` }, { quoted: msg });
         }
         return;

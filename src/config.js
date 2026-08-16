@@ -5,7 +5,7 @@ const ownerNumber = (process.env.OWNER_NUMBER || '').replace(/\D/g, '');
 const secondAdminNumber = process.env.SECOND_ADMIN_NUMBER || '967735076371';
 
 module.exports = {
-  prefix: process.env.COMMAND_PREFIX || '!',
+  prefix: process.env.COMMAND_PREFIX || '.',
   stickerPackName: process.env.STICKER_PACK_NAME || 'My Stickers',
   stickerAuthorName: process.env.STICKER_AUTHOR_NAME || 'Me',
   ownerNumber,

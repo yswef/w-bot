@@ -1,0 +1,26 @@
+# nixpacks.toml
+# يحل مشكلة بطء/فشل تحميل مكتبة canvas على Railway (Canvas loading slowly)
+# السبب: مكتبة "canvas" تحتاج مكتبات نظام أصلية (cairo, pango, giflib...) للبناء والتشغيل،
+# وبيئة Nixpacks الافتراضية لا تثبّتها تلقائياً.
+
+[phases.setup]
+nixPkgs = [
+  "nodejs_20",
+  "python3",
+  "pkg-config",
+  "cairo",
+  "pango",
+  "libpng",
+  "libjpeg",
+  "giflib",
+  "pixman",
+]
+
+[phases.install]
+cmds = ["npm ci --omit=dev || npm install --omit=dev"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node src/index.js"
