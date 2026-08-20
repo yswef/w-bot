@@ -1,38 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings, getMessage, getCustomReactions } = require('../database/db');
+const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings, getMessage, getCustomReactions, isBanned } = require('../database/db');
 const { createWelcomeCard } = require('../utils/welcomeCard');
 const config = require('../config');
 const logger = require('../utils/logger');
+const responses = require('../utils/responses');
 const handleCommand = require('./commandHandler');
+const { isOwnerId } = require('./commandHandler');
+const { checkActiveAnswer } = require('../commands/games');
 // دالة التحقق من إيقاف البوت في مجموعة معينة (safe import)
 let isBotDisabled;
 try { isBotDisabled = require('../commands/utils').isBotDisabled; }
 catch (e) { isBotDisabled = () => false; }
 
-
-// 1. الكلمات التي تتطلب مطابقة تامة (يجب أن تكون الرسالة بالضبط نفس الكلمة)
-const EXACT_REPLIES = {
-  "سلام": 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك! 👋🤖🍀',
-  "مرحبا": 'أهلاً وسهلاً! كيف أقدر أساعدك اليوم؟ 🤖🍀',
-  "هلا": 'أهلاً بك! تفضل كيف أقدر أساعدك؟ 🤖🍀',
-  "من أنت": 'أنا استا ساما، وأنا بوت صممني مالكي، وأحب معلمي يوسف وأحب الرسائل المحذوفة لأنني أستطيع مساعدتك في استرجاعها 🖤✨',
-  "انا استا ساما": 'أجل، أنا استا ساما، بوت أنمي لطيف ومشغول بمساعدة الناس 💫🖤',
-};
-
-// 2. الكلمات التي تعمل إذا كانت موجودة في أي مكان داخل النص (مطابقة جزئية)
-const CONTAINS_REPLIES = {
-  "صباح": 'صباح الخير والسرور! أتمنى لك يوماً سعيداً 🌅🤖🍀',
-  "مساء": 'مساء النور والسرور! كيف أقدر أساعدك؟ 🌃🤖🍀',
-  "شكرا": 'العفو! في خدمتك دائماً ✨🤖🍀',
-  "مشكور": 'العفو، أتمنى لك يوماً طيباً ✨🤖🍀',
-  "يعطيك": 'الله يعافيك ويسلمك! ✨🤖🍀',
-  "تسلم": 'الله يسلمك ويحفظك ✨🤖🍀',
-  "معلمك": 'معلمي يوسف هو من علمني كيف أكون أكثر فائدة ومحبوباً 🌸',
-  "بلاك كلوفر": 'بلاك كلوفر يملك سحرًا خاصًا، وأنا أضيف إليه لمسة من الأناقة والأنمي 🌙✨',
-  "انمي": 'أنا أحب الأنمي، وأحاول أن أكون بوت لا يستسلم مثل معلمي يوسف 🖤'
-};
+// الردود الآلية المشتركة تُقرأ الآن من responses.json (سهل التعديل بدون لمس الكود)
+function getGreetings() {
+  const g = responses.all().greetings || {};
+  return { EXACT_REPLIES: g.exact || {}, CONTAINS_REPLIES: g.contains || {} };
+}
 
 function extractText(message) {
   return (
@@ -87,13 +73,36 @@ async function handleWelcomeMessage(msg, sock, chatId) {
   }
 }
 
+// تنفيذ الأوامر تلقائياً إذا كانت مُرسلة من رقم البوت نفسه (هاتفك الأساسي المربوط بالجلسة)
+async function handleSelfCommand(msg, sock) {
+  if (!config.features.selfCommandExecution) return;
+  try {
+    if (!msg.message) return;
+    const chatId = msg.key.remoteJid;
+    const text = extractText(msg.message);
+    if (!text || !text.startsWith(config.prefix)) return;
+
+    const rawSelfId = sock.user?.id || '';
+    const selfNumber = rawSelfId.split(':')[0].split('@')[0];
+    const senderId = selfNumber ? `${selfNumber}@s.whatsapp.net` : chatId;
+
+    await handleCommand({ sock, msg, text, chatId, senderId });
+  } catch (err) {
+    logger.error('خطأ أثناء تنفيذ أمر ذاتي (من رقم البوت): ' + err.message);
+  }
+}
+
 async function handleIncomingMessages({ messages }, sock) {
   for (const msg of messages) {
     try {
       // تخطي الرسائل الفارغة
       if (!msg.message) continue;
-      // تخطي رسائل البوت نفسه
-      if (msg.key.fromMe) continue;
+
+      // رسائل مرسلة من رقم البوت نفسه (هاتفك المربوط) -> نفّذ الأوامر تلقائياً كمالك، وتخطَّ باقي المعالجة
+      if (msg.key.fromMe) {
+        await handleSelfCommand(msg, sock);
+        continue;
+      }
 
       const chatId = msg.key.remoteJid;
       // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
@@ -126,13 +135,16 @@ async function handleIncomingMessages({ messages }, sock) {
       if (isBotDisabled(chatId)) continue;
 
       const isMaintenance = getGlobalSetting('maintenance_mode') === '1';
-      const isOwner = senderId === (config.ownerNumber + '@s.whatsapp.net');
+      const isOwner = isOwnerId(senderId);
       if (isMaintenance && !isOwner) {
         if (text && text.startsWith(config.prefix)) {
-          await sock.sendMessage(chatId, { text: '🏋️ أستا يتدرب الان ليصبح اقوى، قومو بالدعاء له! الإصرار لا يموت! 💥' }, { quoted: msg });
+          await sock.sendMessage(chatId, { text: responses.get('persona', 'maintenance') }, { quoted: msg });
         }
         continue;
       }
+
+      // 🚫 المحظورون: نتجاهل رسائلهم تماماً في الردود الآلية والألعاب (الأوامر تُرفض داخل commandHandler)
+      const senderBanned = !isOwner && isBanned(senderId);
 
       // 🛡️ حماية ضد الروابط (Anti-Link)
       if (chatId.endsWith('@g.us') && !msg.key.fromMe) {
@@ -148,7 +160,7 @@ async function handleIncomingMessages({ messages }, sock) {
       }
 
       // التفاعلات المخصصة (Auto-Reactions)
-      if (text) {
+      if (text && !senderBanned) {
         const reactions = getCustomReactions();
         for (const rx of reactions) {
           if (text.includes(rx.keyword)) {
@@ -195,8 +207,14 @@ async function handleIncomingMessages({ messages }, sock) {
         continue;
       }
 
+      // 🎮 فعاليات الأنمي التلقائية (تفكيك/تخمين): يلتقط البوت الإجابة الصحيحة مباشرة من الدردشة بدون أمر
+      if (text && !senderBanned) {
+        const handled = await checkActiveAnswer({ sock, msg, chatId, senderId, text });
+        if (handled) continue;
+      }
+
       // الردود الآلية (تعمل في الخاص والمجموعات)
-      if (config.features.autoReply) {
+      if (config.features.autoReply && !senderBanned) {
         const customReply = resolveCustomReply(text, chatId);
         if (customReply) {
           await sock.sendMessage(chatId, { text: customReply }, { quoted: msg });
@@ -204,6 +222,7 @@ async function handleIncomingMessages({ messages }, sock) {
         }
 
         const trimmedText = text.trim();
+        const { EXACT_REPLIES, CONTAINS_REPLIES } = getGreetings();
 
         // أولاً: التحقق من المطابقة التامة (Exact Match)
         if (EXACT_REPLIES[trimmedText]) {
