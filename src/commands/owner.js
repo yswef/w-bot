@@ -1,13 +1,16 @@
 const os = require('os');
 const { getGlobalSetting, setGlobalSetting, db } = require('../database/db');
 const config = require('../config');
+const responses = require('../utils/responses');
 
 // أوامر المالك
 module.exports = async function ownerCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-    const isOwner = senderId === (config.ownerNumber + '@s.whatsapp.net') || senderId === (config.secondAdminNumber + '@s.whatsapp.net');
+    const digits = (senderId || '').replace(/\D/g, '');
+    const owners = config.adminNumbers || [config.ownerNumber];
+    const isOwner = owners.some((o) => o && digits.includes(o));
 
     if (!isOwner) {
-        await sock.sendMessage(chatId, { text: '❌ همممم! أستا يقول بإن السحر الخاص بك لا يكفي لهذا الأمر.. أنت لست الملك!' }, { quoted: msg });
+        await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_owner') }, { quoted: msg });
         return;
     }
 
