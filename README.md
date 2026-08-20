@@ -1,100 +1,200 @@
-# 📱 Asta WhatsApp Bot
+# ⚔️ أستا ساما — Asta WhatsApp Bot
 
-A powerful, fully-featured WhatsApp bot inspired by Asta from Black Clover! It includes robust logging, dynamic games, auto-reminders, anime updates, and advanced group management.
+> "حتى لو لم أكن أمتلك سحراً، سأصبح إمبراطور السحر!" 🍀
 
----
+بوت واتساب مستوحى من عالم **Black Clover**، مبني على مكتبة Baileys، ومصمم ليكون رفيقك في كل مجموعة: يلعب معك، يحرسها من الروابط والمشاغبين، يرحّب بالأعضاء الجدد، يحوّل صورك لملصقات، وما يتوقف عن الاجتهاد... تماماً مثل أستا.
 
-## ⚠️ Important Note
-
-- This bot uses unofficial libraries (Baileys) to connect to WhatsApp. This violates WhatsApp's Terms of Service and might result in a **banned number**.
-- **Use a test number, not your primary one.**
-- This project is for personal use and learning purposes. Do not use it for massive spam or commercial broadcasting.
+هذا المشروع بُني بمحبة، وكل سطر فيه يحمل شوية من روح "لا تستسلم أبداً" 🖤
 
 ---
 
-## 📋 Features
+## 🍀 لماذا أستا؟
 
-- **Asta Persona**: The bot replies varying between Asta's fiery determination and helpful information!
-- **Message Logging**: Automatically saves all messages to a local SQLite database (`bot.db`).
-- **Deleted Message Recovery**: Automatically catches deleted messages and re-sends them.
-- **Sticker Maker**: Converts images/videos into stickers seamlessly (`!ملصق`).
-- **Games & Anime Tools**: Play anime trivia (`!خمن`), get random characters (`!انمي`, `!زوجني`), search anime info (`!بحث-انمي`), or get anime quotes. 
-  - *Images are fetched safely using the official free Jikan API.*
-- **Islamic Tools**: View Quranic verses and athkar, or subscribe groups to daily scheduled verses and athkar.
-- **Group Management**: Anti-link protection (`!منع-الروابط`), custom canvas welcome cards (`!ترحيب`), promote/demote/kick, and scheduled events.
-- **Maintenance Mode**: An owner-exclusive toggle (`!صيانة`) to train the bot without disturbing group members.
-- **Resilient Media Fetching**: Bypasses hotlinking restrictions safely with strict timeouts and validations.
+لأن أستا ما يملك سحر، لكنه ما استسلم أبداً. وهذا البوت مثله بالضبط: بسيط في فكرته، لكنه ما يتوقف عن التطور. كل أمر فيه، وكل رد، مكتوب بنفس الحماس والطاقة العالية اللي يميز شخصية أستا — عزيمة لا تنكسر، وحماس ما له حدود.
 
 ---
 
-## 🚀 Setup Instructions
+## ⚠️ ملاحظة مهمة قبل البدء
 
-### 1) Prerequisites
-- **Node.js** version 18 or newer
+- البوت يستخدم مكتبة Baileys غير الرسمية للاتصال بواتساب، وهذا يخالف شروط استخدام واتساب وقد يعرّض الرقم للحظر.
+- **استخدم رقماً تجريبياً وليس رقمك الأساسي.**
+- هذا المشروع لأغراض شخصية وتعليمية، لا تستخدمه للسبام أو البث التجاري الجماعي.
+
+---
+
+## ✨ كل مميزات أستا بالتفصيل
+
+### 🌸 الأنمي والترفيه
+| الأمر | الوصف |
+|---|---|
+| `.انمي` | يرسل شخصية أنمي عشوائية مع صورتها ومقولة (عبر Jikan API) |
+| `.زوجني` | شريك حياة عشوائي (أي شخصية) |
+| `.زوج` | شريك حياة سحري — شخصية **ذكر** فقط |
+| `.زوجة` | شريكة حياة سحرية — شخصية **أنثى** فقط |
+| `.اقتباس` | مقولة فخمة من عالم الأنمي |
+| `.انميات` | قائمة أنميات الموسم الحالي |
+| `.بحث-انمي <اسم>` | تفاصيل عن أي أنمي تريده |
+| `.نشرة-انمي` | جدولة نشرة أنمي دورية تلقائية للمجموعة |
+
+### 🎮 الألعاب
+| الأمر | الوصف |
+|---|---|
+| `.حجر` / `.ورقه` / `.مقص` | تحدَّ البوت بلعبة حجر ورقة مقص |
+| `.تخمين` ثم `.اخمن <رقم>` | خمّن الرقم السري بين 1 و20 خلال 5 محاولات |
+| `.سؤال` | سؤال معلومات عن بلاك كلوفر — **أجب مباشرة في الدردشة بدون أي أمر!** |
+| `.فعالية <عدد الجولات>` | 🔥 فعالية جماعية لتفكيك الحروف يديرها المشرف (حتى 20 جولة)، يرسل البوت اسم شخصية مبعثر الحروف، وأول من يكتب الاسم الصحيح **مباشرة في الدردشة** يفوز بنقطة. في النهاية يظهر لوحة الصدارة 🏆 |
+| `.ايقاف_فعالية` | إيقاف الفعالية الجارية وعرض النتائج فوراً |
+
+### 🕌 أوامر إسلامية
+`.آية` لآية قرآنية عشوائية، `.ذكر` لذكر يومي، بالإضافة لجدولة تلقائية للأذكار والآيات في المجموعات.
+
+### 🛡️ إدارة المجموعات (للمشرفين والمالك)
+| الأمر | الوصف |
+|---|---|
+| `.طرد` / `.ترقية` / `.تخفيض` | إدارة الأعضاء (الترقية والتخفيض للمالك فقط) |
+| `.قفل` / `.فتح` | قفل أو فتح المجموعة للإرسال |
+| `.الكل <رسالة>` | منشن ظاهر لجميع الأعضاء |
+| `.تنبيه <رسالة>` | 🤫 منشن **مخفي** لجميع الأعضاء — يصلهم التنبيه بدون عرض قائمة @ الطويلة |
+| `.همسة <رسالة>` | منشن مخفي مرفق برسالة لعضو واحد (رد على رسالته) |
+| `.منع-الروابط` | يحذف أي رابط يُرسل في المجموعة تلقائياً |
+| `.ترحيب` | تفعيل/إيقاف بطاقة ترحيب مصممة بـ Canvas لكل عضو جديد |
+| `.حظر @عضو` / `.رفع-حظر @عضو` | 🚫 منع عضو معيّن من استخدام أي أمر من أوامر البوت نهائياً (للمالك) |
+| `.المحظورين` | عرض قائمة كل المحظورين حالياً |
+| `.جدولة قفل/فتح/اذكار` | جدولة مهام تلقائية للمجموعة |
+
+> 💡 إذا حاول أستا تنفيذ أمر إداري (مثل الطرد أو القفل) ولم يكن مشرفاً في المجموعة، سيرسل تلقائياً رسالة يطلب فيها ترقيته إلى مشرف بدلاً من أن يفشل بصمت.
+
+### 🎨 الملصقات
+| الأمر | الوصف |
+|---|---|
+| `.ملصق` | حوّل أي صورة أو فيديو/GIF قصير لملصق — إما بالرد عليه، أو بإرسال الوسائط مباشرة مع كتابة `.ملصق` كتعليق (caption) بدون الحاجة لعمل رد! |
+| `.سرقة` | رد على أي ملصق موجود وسيسرقه أستا، مغيّراً حقوقه (اسم الباك والمؤلف) لحقوقه الخاصة، ثم يعيد إرساله |
+
+### 👑 صلاحيات المالك
+- المالكون المعتمدون حالياً: `967784773314` و `967784609423` (بالإضافة لأي رقم تضيفه في `.env`).
+- **تنفيذ ذاتي**: إذا كتبت أمراً من هاتفك الأساسي المربوط بجلسة البوت مباشرة، سينفذه أستا تلقائياً كأنك أرسلته له — بدون أي إعداد إضافي.
+- `.صيانة` — تفعيل/إيقاف وضع الصيانة (لا يستجيب البوت لأحد إلا المالك).
+- `.احصائيات` — إحصائيات حية عن استهلاك الرام وعدد المجموعات والرسائل.
+- `.بث <رسالة>` — بث رسالة جماعية.
+
+### 🌐 أدوات متنوعة
+`.طقس <مدينة>`, `.ويكي <بحث>`, `.سعر <مبلغ> <من> <إلى>` (تحويل عملات حي), `.ترجم <لغة> <نص>`, `.استطلاع`, `.حب @شخص1 @شخص2`, `.نكتة`, `.سلسلة` (لعبة سلسلة الحروف), `.تواصل` (التواصل مع المطوّر).
+
+### 🤖 سلوك تلقائي ذكي
+- **تفاعل تلقائي 🤖** على أي أمر يُنفَّذ بنجاح.
+- **استرجاع الرسائل المحذوفة** — إذا حذف أحدهم رسالته، يعيد أستا إرسالها.
+- **كشف تعديل الرسائل** — إذا عدّل أحدهم رسالته، ينبّه أستا الجميع ويكشف نصها الأصلي: "أستا لا ينسى ولا يتراجع!"
+- **بطاقة ترحيب مرسومة بالكامل (Canvas)** لكل عضو جديد ينضم للمجموعة.
+- **ردود آلية وتفاعلات مخصصة** قابلة للتعديل من ملف `src/responses.json` مباشرة، بدون الحاجة للمس الكود.
+
+---
+
+## 👨‍💻 عن المطوّر
+
+هذا البوت من تصميم وتطوير **يوسف (Eng.Yousef)**، الذي أعطى أستا شخصيته وحماسه.
+
+- 🌐 الموقع الرسمي: **[engyusef.alpha-code.net](https://engyusef.alpha-code.net)**
+- 📱 للتواصل المباشر: `wa.me/967784609423`
+
+إذا واجهتك مشكلة، أو عندك فكرة لميزة جديدة، تواصل معه مباشرة — أو استخدم أمر `.تواصل` داخل البوت نفسه.
+
+---
+
+## 🚀 التشغيل
+
+### 1) المتطلبات
+- **Node.js** إصدار 18 أو أحدث
 - Git
 
-### 2) Installation
+### 2) التثبيت
 ```bash
-git clone <your_repo_url>
+git clone <رابط مستودعك>
 cd whatsapp-bot
 npm install
 cp .env.example .env
 ```
-Edit `.env` and configure your variables (such as `OWNER_NUMBER` and `COMMAND_PREFIX`).
+عدّل ملف `.env` واضبط المتغيرات (مثل `OWNER_NUMBER`، `EXTRA_OWNER_NUMBERS`، و`COMMAND_PREFIX`).
 
-### 3) Running the Bot
+### 3) التشغيل
 ```bash
 npm start
 ```
-- Scan the QR code shown in the terminal using your WhatsApp **Linked Devices**.
-- Once connected, the session is stored locally (no need to scan upon every restart).
+- امسح رمز QR الظاهر في الطرفية عبر **الأجهزة المرتبطة** في واتساب.
+- بعد الاتصال، تُحفظ الجلسة محلياً (لن تحتاج لمسح الرمز في كل مرة).
 
-### 4) Deployment Update
-Use the included `update.sh` script to fetch the latest changes efficiently on your server:
+### 4) النشر على Railway
+تم تضمين ملف `nixpacks.toml` يجهّز تلقائياً المكتبات التي تحتاجها `canvas` (لبطاقات الترحيب) عند البناء على Railway، ويحل مشكلة البطء أو الفشل عند تحميل الصور. لا حاجة لأي إعداد إضافي — فقط ادفع المشروع واربطه بـ Railway وسيعمل.
+
+### 5) تحديث النشر
+استخدم سكربت `update.sh` المرفق لسحب آخر التحديثات على السيرفر:
 ```bash
 bash update.sh
 ```
 
 ---
 
-## 🛡️ Session Management & Deployment Warnings
+## 🗂️ بنية المشروع (مختصرة)
 
-If you deploy this bot on a platform like **Railway, Render, or Heroku**, you might face session issues (like `Connection Closed` or `MessageCounterError`). This happens because the `session/` folder is deleted on every restart.
-
-**🔴 Do NOT save the session to GitHub automatically!**
-WhatsApp updates its security keys with almost every message sent or received. Pushing the session to GitHub automatically will rapidly exhaust GitHub API limits and bloat your repository.
-
-**✅ Recommended Solutions:**
-1. **Persistent Volumes:** If your host supports disks/volumes (like Railway Volumes), mount it to the `/session` directory.
-2. **MongoDB Auth State:** Modify `sessionManager.js` to use `useMongoDBAuthState` (supported natively by Baileys) to store credentials in a free cloud database like MongoDB Atlas. (Highly recommended for cloud).
-
----
-
-## 🤖 Prompt for the Next AI Model
-
-*(Copy and paste this section to the next AI you work with so it understands the project instantly)*
-
-```text
-You are an expert full-stack developer working on the "Asta WhatsApp Bot".
-
-Project Tech Stack: Node.js, @whiskeysockets/baileys, better-sqlite3 (SQLite).
-Key Files: 
-- `src/index.js` (Entry point)
-- `src/sessionManager.js` (Handles Baileys sessions & connection)
-- `src/handlers/messageHandler.js` (Routes commands)
-- `src/commands/*.js` (Contains all features, separated by category)
-- `bot.db` (SQLite DB for state, scheduled messages, settings)
-
-Current Status & Important Notes:
-1. The bot is fully functional with scheduling, anime APIs (Jikan), and games.
-2. The user has had issues with Baileys session states (`MessageCounterError` and `Status 428 Precondition Required`) when deploying/restarting because local files wipe. Do NOT suggest syncing the session to GitHub. Instead, if session persistence is requested, guide the user to set up a Railway Volume, OR implement Baileys `useMongoDBAuthState` to store credentials in MongoDB Atlas.
-3. Keep changes modular. Asta's "loud and energetic" persona is a key requirement for responses.
-4. Images in anime functions (`!انمي`, `!زوجني`) now use `https://api.jikan.moe/v4/random/characters` and its image url successfully.
-
-Your goal is to continue development seamlessly without breaking existing sqlite mechanisms. Always refer to `src/database/db.js` for existing schemas before creating new state mechanisms.
+```
+whatsapp-bot/
+├── nixpacks.toml         # إعدادات بناء Railway (canvas)
+├── src/
+│   ├── config.js          # كل الإعدادات (البادئة، أرقام المالكين...)
+│   ├── responses.json      # الردود المشتركة القابلة للتعديل بدون كود
+│   ├── database/db.js      # قاعدة بيانات SQLite (رسائل، حظر، ألعاب...)
+│   ├── handlers/           # معالجات الرسائل والأوامر
+│   ├── commands/           # كل أوامر البوت، ملف لكل فئة
+│   └── utils/               # أدوات مساعدة (Canvas، الردود، اللوق)
 ```
 
 ---
 
-## 📜 License & Usage
-If you want to use this bot, please talk to the owner of this bot.
+## 🛡️ إدارة الجلسات والنشر
+
+## 🛡️ إدارة الجلسات وتحذيرات النشر
+
+إذا نشرت البوت على منصة مثل **Railway** أو **Render** أو **Heroku**، قد تواجه مشاكل في الجلسة (مثل `Connection Closed` أو `MessageCounterError`). هذا يحدث لأن مجلد `session/` يُحذف مع كل إعادة تشغيل.
+
+**🔴 لا تحفظ الجلسة على GitHub تلقائياً!**
+واتساب يحدّث مفاتيح الأمان مع كل رسالة تقريباً، ورفع الجلسة تلقائياً لـ GitHub سيستنزف حدود GitHub API بسرعة وينفخ حجم المستودع.
+
+**✅ الحلول الموصى بها:**
+1. **أقراص دائمة (Persistent Volumes):** إذا كانت منصتك تدعم الأقراص (مثل Railway Volumes)، اربطه بمجلد `/session`.
+2. **تخزين الجلسة في MongoDB:** عدّل `sessionManager.js` لاستخدام `useMongoDBAuthState` (مدعومة أصلاً من Baileys) لتخزين بيانات الاعتماد في قاعدة بيانات سحابية مجانية مثل MongoDB Atlas (موصى به بشدة للنشر السحابي).
+
+---
+
+## 🤖 ملخّص للنموذج الذكي القادم
+
+*(انسخ هذا القسم والصقه لأي مساعد ذكاء اصطناعي تعمل معه لاحقاً حتى يفهم المشروع فوراً)*
+
+```text
+أنت مطوّر خبير full-stack تعمل على مشروع "Asta WhatsApp Bot".
+
+التقنيات: Node.js, @whiskeysockets/baileys, better-sqlite3 (SQLite).
+الملفات الأساسية:
+- src/index.js (نقطة الدخول)
+- src/sessionManager.js (يدير جلسات واتصال Baileys)
+- src/handlers/messageHandler.js و commandHandler.js (توجيه الرسائل والأوامر)
+- src/commands/*.js (كل الميزات، كل فئة في ملف منفصل)
+- src/responses.json (الردود المشتركة القابلة للتعديل بدون كود)
+- src/database/db.js (قاعدة بيانات SQLite: رسائل، حظر، ألعاب، إعدادات...)
+
+ملاحظات مهمة:
+1. البوت يعمل بالكامل مع الجدولة، APIs الأنمي (Jikan)، الألعاب، نظام الحظر، وفعاليات جماعية تلقائية.
+2. واجه المستخدم مشاكل في جلسات Baileys (MessageCounterError و Status 428) عند إعادة النشر لأن الملفات المحلية تُمسح. لا تقترح رفع الجلسة إلى GitHub؛ وجّه المستخدم لاستخدام Railway Volume أو useMongoDBAuthState مع MongoDB Atlas.
+3. حافظ على التعديلات معيارية (modular). شخصية أستا "الصاخبة والمتحمسة" شرط أساسي لكل الردود الجديدة.
+4. بادئة الأوامر الحالية هي النقطة (.) وليست علامة التعجب (!).
+5. المالكون الحاليون: 967784773314 و967784609423 (config.ownerNumbers)، بالإضافة لتنفيذ ذاتي للأوامر عند إرسالها من رقم البوت نفسه.
+
+هدفك: الاستمرار بالتطوير بسلاسة دون كسر آليات SQLite الحالية. راجع دائماً src/database/db.js قبل إنشاء أي جداول جديدة.
+```
+
+---
+
+## 📜 الترخيص والاستخدام
+إذا رغبت باستخدام هذا البوت، تواصل مع مالك المشروع أولاً.
+
+---
+
+🍀 **تجاوز حدودك هنا والآن!**
