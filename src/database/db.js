@@ -243,6 +243,34 @@ function deleteCustomReaction(id) {
   return db.prepare(`DELETE FROM custom_reactions WHERE id = ?`).run(id);
 }
 
+// =============================================
+// 🚫 نظام الحظر (Ban System)
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS banned_users (
+    user_id TEXT PRIMARY KEY,
+    banned_by TEXT,
+    banned_at INTEGER
+  )
+`);
+
+function banUser(userId, bannedBy) {
+  db.prepare(`INSERT OR REPLACE INTO banned_users (user_id, banned_by, banned_at) VALUES (?, ?, ?)`)
+    .run(userId, bannedBy, Date.now());
+}
+
+function unbanUser(userId) {
+  return db.prepare(`DELETE FROM banned_users WHERE user_id = ?`).run(userId);
+}
+
+function isBanned(userId) {
+  return !!db.prepare(`SELECT 1 FROM banned_users WHERE user_id = ?`).get(userId);
+}
+
+function getBannedUsers() {
+  return db.prepare(`SELECT * FROM banned_users ORDER BY banned_at DESC`).all();
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -268,5 +296,9 @@ module.exports = {
   getGlobalSetting,
   setGlobalSetting,
   addScheduledEvent,
-  getScheduledEvents
+  getScheduledEvents,
+  banUser,
+  unbanUser,
+  isBanned,
+  getBannedUsers,
 };
