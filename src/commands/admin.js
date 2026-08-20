@@ -1,24 +1,22 @@
-const fs = require('fs');
-const path = require('path');
 const { saveCustomReply, deleteCustomReply, setWelcomeMessage, getWelcomeMessage } = require('../database/db');
 const config = require('../config');
+const responses = require('../utils/responses');
 const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-  // التحقق من صلاحية المالك - يشمل المالك الرئيسي والأدمن الثاني
+  // التحقق من صلاحية المالك - يشمل كل المالكين والأدمن الثاني
   const admins = config.adminNumbers || [config.ownerNumber];
   const isOwner = admins.some(a => a && senderId.replace(/\D/g, '').includes(a));
   if (!isOwner) {
-    await sock.sendMessage(chatId, { text: '⚠️ هذا الأمر مخصص للمسؤولين فقط.' }, { quoted: msg });
+    await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_owner') }, { quoted: msg });
     return;
   }
-
 
   if (commandKey === 'رد') {
     const [keyword, ...replyParts] = args;
     const reply = replyParts.join(' ');
     if (!keyword || !reply) {
-      await sock.sendMessage(chatId, { text: 'استخدم: !رد <الكلمة> <الرد>' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}رد <الكلمة> <الرد>` }, { quoted: msg });
       return;
     }
     saveCustomReply({ keyword, reply, scope: chatId.endsWith('@g.us') ? 'group' : 'private' });
@@ -29,7 +27,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   if (commandKey === 'تفاعل') {
     const [keyword, emoji] = args;
     if (!keyword || !emoji) {
-      await sock.sendMessage(chatId, { text: 'استخدم: !تفاعل <الكلمة> <الايموجي>' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}تفاعل <الكلمة> <الايموجي>` }, { quoted: msg });
       return;
     }
     const { saveCustomReaction } = require('../database/db');
@@ -41,7 +39,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   if (commandKey === 'حذفتفاعل') {
     const id = Number(args[0]);
     if (!id) {
-      await sock.sendMessage(chatId, { text: 'استخدم: !حذفتفاعل <id>' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}حذفتفاعل <id>` }, { quoted: msg });
       return;
     }
     const { deleteCustomReaction } = require('../database/db');
@@ -53,7 +51,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   if (commandKey === 'حذفرد') {
     const id = Number(args[0]);
     if (!id) {
-      await sock.sendMessage(chatId, { text: 'استخدم: !حذفرد <id>' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}حذفرد <id>` }, { quoted: msg });
       return;
     }
     deleteCustomReply(id);
@@ -92,7 +90,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   if (commandKey === 'بث') {
     const message = args.join(' ');
     if (!message) {
-      await sock.sendMessage(chatId, { text: 'استخدم: !بث <الرسالة>' }, { quoted: msg });
+      await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}بث <الرسالة>` }, { quoted: msg });
       return;
     }
     const groups = [chatId];
