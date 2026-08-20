@@ -1,5 +1,7 @@
 const config = require('../config');
 const logger = require('../utils/logger');
+const responses = require('../utils/responses');
+const { isBanned } = require('../database/db');
 
 // =============================================
 // 🧩 مسجل الأوامر الرئيسي - أضف ملف جديد وسجّله هنا
@@ -9,6 +11,8 @@ const commands = {
   ping: require('../commands/ping'),
   sticker: require('../commands/sticker'),
   ملصق: require('../commands/sticker'),
+  سرقة: require('../commands/sticker'),
+  steal: require('../commands/sticker'),
   info: require('../commands/info'),
   مساعدة: require('../commands/info'),
   help: require('../commands/info'),
@@ -17,6 +21,8 @@ const commands = {
   anime: require('../commands/fun'),
   انمي: require('../commands/fun'),
   زوجني: require('../commands/fun'),
+  زوج: require('../commands/fun'),
+  زوجة: require('../commands/fun'),
   lastseen: require('../commands/fun'),
   'آخر-مرة': require('../commands/fun'),
   آخرمرة: require('../commands/fun'),
@@ -34,6 +40,10 @@ const commands = {
   trivia: require('../commands/games'),
   جواب: require('../commands/games'),
   answer: require('../commands/games'),
+  فعالية: require('../commands/games'),
+  تفكيك: require('../commands/games'),
+  event: require('../commands/games'),
+  ايقاف_فعالية: require('../commands/games'),
 
   // --- أوامر إسلامية ---
   آية: require('../commands/islamic'),
@@ -60,6 +70,20 @@ const commands = {
   all: require('../commands/groupAdmin'),
   'معلومات-مجموعة': require('../commands/groupAdmin'),
   groupinfo: require('../commands/groupAdmin'),
+  'منع-الروابط': require('../commands/groupAdmin'),
+  antilink: require('../commands/groupAdmin'),
+  welcome: require('../commands/groupAdmin'),
+  جدولة: require('../commands/groupAdmin'),
+  حظر: require('../commands/groupAdmin'),
+  ban: require('../commands/groupAdmin'),
+  'رفع-حظر': require('../commands/groupAdmin'),
+  unban: require('../commands/groupAdmin'),
+  المحظورين: require('../commands/groupAdmin'),
+  banlist: require('../commands/groupAdmin'),
+  تنبيه: require('../commands/groupAdmin'),
+  همسة: require('../commands/groupAdmin'),
+  منشن: require('../commands/groupAdmin'),
+  ضد_التعديل: require('../commands/groupAdmin'),
 
   // --- أوامر المالك ---
   صيانة: require('../commands/owner'),
@@ -108,7 +132,19 @@ const commands = {
   'تفعيل-بوت': require('../commands/utils'),
   'إيقاف-بوت': require('../commands/utils'),
   سلسلة: require('../commands/utils'),
+
+  // --- التواصل مع المطور ---
+  تواصل: require('../commands/developer'),
+  المطور: require('../commands/developer'),
+  developer: require('../commands/developer'),
+  contact: require('../commands/developer'),
 };
+
+function isOwnerId(senderId) {
+  const owners = config.ownerNumbers || [config.ownerNumber];
+  const digits = (senderId || '').replace(/\D/g, '');
+  return owners.some((o) => o && digits.includes(o));
+}
 
 async function handleCommand({ sock, msg, text, chatId, senderId }) {
   const withoutPrefix = text.slice(config.prefix.length).trim();
@@ -121,12 +157,25 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
     return;
   }
 
+  // 🚫 نظام الحظر - المحظورون لا يستطيعون استخدام أي أمر (باستثناء المالك)
+  if (!isOwnerId(senderId) && isBanned(senderId)) {
+    await sock.sendMessage(chatId, { text: responses.get('persona', 'banned') }, { quoted: msg });
+    return;
+  }
+
   try {
     await command({ sock, msg, args, chatId, senderId, commandKey });
+    // 🤖 تفاعل تلقائي عند نجاح تنفيذ أي أمر
+    try {
+      await sock.sendMessage(chatId, { react: { text: responses.get('persona', 'auto_react') || '🤖', key: msg.key } });
+    } catch (reactErr) {
+      logger.warn('تعذر إرسال تفاعل النجاح: ' + reactErr.message);
+    }
   } catch (err) {
     logger.error(`[Command Error] Command: ${commandKey}, User: ${senderId}, Error: ${err.message}\n${err.stack}`);
-    await sock.sendMessage(chatId, { text: '💥 أستا متعب الان بعد كل هذا الجهد... ولكن أستا لن يستسلم يوماً! هناك خلل سحري صغير.' }, { quoted: msg });
+    await sock.sendMessage(chatId, { text: responses.get('persona', 'error_generic') }, { quoted: msg });
   }
 }
 
 module.exports = handleCommand;
+module.exports.isOwnerId = isOwnerId;
