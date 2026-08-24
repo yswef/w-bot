@@ -271,6 +271,47 @@ function getBannedUsers() {
   return db.prepare(`SELECT * FROM banned_users ORDER BY banned_at DESC`).all();
 }
 
+// =============================================
+// ⏰ نظام التذكيرات (Reminders) - أمر !تذكير
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_jid TEXT NOT NULL,
+    created_by TEXT,
+    text TEXT NOT NULL,
+    remind_at INTEGER NOT NULL,
+    sent INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )
+`);
+
+function addReminder({ targetJid, createdBy, text, remindAt }) {
+  const stmt = db.prepare(`
+    INSERT INTO reminders (target_jid, created_by, text, remind_at, sent, created_at)
+    VALUES (?, ?, ?, ?, 0, ?)
+  `);
+  const info = stmt.run(targetJid, createdBy, text, remindAt, Date.now());
+  return info.lastInsertRowid;
+}
+
+// يجلب كل التذكيرات المستحقة (وقتها حان) ولم تُرسل بعد
+function getDueReminders(now = Date.now()) {
+  return db.prepare(`SELECT * FROM reminders WHERE sent = 0 AND remind_at <= ?`).all(now);
+}
+
+function markReminderSent(id) {
+  db.prepare(`UPDATE reminders SET sent = 1 WHERE id = ?`).run(id);
+}
+
+function getPendingReminders() {
+  return db.prepare(`SELECT * FROM reminders WHERE sent = 0 ORDER BY remind_at ASC`).all();
+}
+
+function deleteReminder(id) {
+  return db.prepare(`DELETE FROM reminders WHERE id = ?`).run(id);
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -301,4 +342,9 @@ module.exports = {
   unbanUser,
   isBanned,
   getBannedUsers,
+  addReminder,
+  getDueReminders,
+  markReminderSent,
+  getPendingReminders,
+  deleteReminder,
 };

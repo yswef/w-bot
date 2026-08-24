@@ -34,6 +34,22 @@ function isGroupChat(chatId) {
   return chatId?.endsWith('@g.us');
 }
 
+// ⚠️ إصلاح: واتساب/Baileys أحياناً يضع "messageContextInfo" (أو مفاتيح تعريفية
+// أخرى لا تمثل محتوى فعلياً) كأول مفتاح داخل msg.message، فكان
+// Object.keys(msg.message)[0] يرجع "messageContextInfo" بدل "imageMessage"
+// الفعلي، فتفشل معرفة نوع الرسالة وبالتالي لا يتم تنزيل/حفظ الصور والوسائط.
+// هذه الدالة تتجاهل المفاتيح غير المهمة وتعيد أول نوع محتوى حقيقي.
+const NON_CONTENT_KEYS = new Set([
+  'messageContextInfo',
+  'senderKeyDistributionMessage',
+  'deviceSentMessage',
+]);
+
+function getRealMessageType(message) {
+  const keys = Object.keys(message || {}).filter((k) => !NON_CONTENT_KEYS.has(k));
+  return keys[0];
+}
+
 function resolveCustomReply(text, chatId) {
   const replies = getCustomReplies(isGroupChat(chatId) ? 'group' : 'private');
   const fallback = getCustomReplies('all');
@@ -122,7 +138,7 @@ async function handleIncomingMessages({ messages }, sock) {
       }
 
       const text = extractText(msg.message);
-      const msgType = Object.keys(msg.message)[0];
+      const msgType = getRealMessageType(msg.message);
 
       // معالجة أحداث الانضمام للمجموعات (ترحيب تلقائي)
       const stubType = msg.message?.messageStubType;
@@ -173,7 +189,14 @@ async function handleIncomingMessages({ messages }, sock) {
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          // ⚠️ إصلاح: بدون تمرير { logger, reuploadRequest } يفشل Baileys بصمت
+          // في تنزيل الوسائط التي تحتاج إعادة طلب رابط (منتهية الصلاحية/معاد إرسالها)
+          const buffer = await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            { logger, reuploadRequest: sock.updateMediaMessage }
+          );
           const dir = path.join(__dirname, '..', '..', 'media_store');
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           const ext = msgType.replace('Message', '');

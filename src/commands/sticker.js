@@ -9,9 +9,17 @@ const config = require('../config');
  *  - .سرقة (رد على ملصق) -> يعيد إرساله بحقوق أستا/المطور
  * "حقوق الملصق" (اسم الباك + المؤلف) تُقرأ من .env
  */
+// ⚠️ إصلاح: نفس مشكلة messageContextInfo في messageHandler.js - نتجاهل
+// المفاتيح غير المهمة عند تحديد نوع الرسالة المقتبَسة/المباشرة.
+const NON_CONTENT_KEYS = new Set(['messageContextInfo', 'senderKeyDistributionMessage', 'deviceSentMessage']);
+function getRealType(message) {
+  const keys = Object.keys(message || {}).filter((k) => !NON_CONTENT_KEYS.has(k));
+  return keys[0];
+}
+
 module.exports = async function sticker({ sock, msg, chatId, commandKey }) {
   const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-  const quotedType = quoted ? Object.keys(quoted)[0] : null;
+  const quotedType = quoted ? getRealType(quoted) : null;
 
   // ===== سرقة ملصق موجود: نعيد تغليفه بحقوق أستا ونعيد إرساله =====
   if (commandKey === 'سرقة' || commandKey === 'steal') {
@@ -28,7 +36,7 @@ module.exports = async function sticker({ sock, msg, chatId, commandKey }) {
       },
       message: quoted,
     };
-    const buffer = await downloadMediaMessage(fakeMsg, 'buffer', {});
+    const buffer = await downloadMediaMessage(fakeMsg, 'buffer', {}, { logger: console, reuploadRequest: sock.updateMediaMessage });
     const stolenSticker = new Sticker(buffer, {
       pack: config.stickerPackName,
       author: config.stickerAuthorName,
@@ -57,7 +65,7 @@ module.exports = async function sticker({ sock, msg, chatId, commandKey }) {
     };
   } else {
     // الحالة الثانية: الأمر أُرسل كـ caption مباشرة مع الصورة/الفيديو (بدون رد)
-    const directType = Object.keys(msg.message || {})[0];
+    const directType = getRealType(msg.message);
     if (['imageMessage', 'videoMessage'].includes(directType)) {
       mediaType = directType;
       fakeMsg = msg;
@@ -82,7 +90,7 @@ module.exports = async function sticker({ sock, msg, chatId, commandKey }) {
     }
   }
 
-  const buffer = await downloadMediaMessage(fakeMsg, 'buffer', {});
+  const buffer = await downloadMediaMessage(fakeMsg, 'buffer', {}, { logger: console, reuploadRequest: sock.updateMediaMessage });
 
   const stickerObj = new Sticker(buffer, {
     pack: config.stickerPackName,     // ده اللي يظهر كـ "حقوق"/اسم الباكدج

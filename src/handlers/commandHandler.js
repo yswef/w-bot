@@ -133,6 +133,11 @@ const commands = {
   'إيقاف-بوت': require('../commands/utils'),
   سلسلة: require('../commands/utils'),
 
+  // --- التذكيرات ---
+  تذكير: require('../commands/reminder'),
+  reminder: require('../commands/reminder'),
+  remind: require('../commands/reminder'),
+
   // --- التواصل مع المطور ---
   تواصل: require('../commands/developer'),
   المطور: require('../commands/developer'),
@@ -140,8 +145,12 @@ const commands = {
   contact: require('../commands/developer'),
 };
 
+// ⚠️ إصلاح: كانت هذه الدالة تتحقق فقط من config.ownerNumbers، وبالتالي
+// الأدمن الثاني (secondAdminNumber) كان يُعامل كمستخدم عادي في: تجاوز
+// وضع الصيانة، حماية الروابط (anti-link)، وتجاوز الحظر. الآن تشمل
+// config.adminNumbers (كل المالكين + الأدمن الثاني).
 function isOwnerId(senderId) {
-  const owners = config.ownerNumbers || [config.ownerNumber];
+  const owners = config.adminNumbers || config.ownerNumbers || [config.ownerNumber];
   const digits = (senderId || '').replace(/\D/g, '');
   return owners.some((o) => o && digits.includes(o));
 }
