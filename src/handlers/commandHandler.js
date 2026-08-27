@@ -20,7 +20,6 @@ const commands = {
   // --- أوامر الأنمي والترفيه ---
   anime: require('../commands/fun'),
   انمي: require('../commands/fun'),
-  زوجني: require('../commands/fun'),
   زوج: require('../commands/fun'),
   زوجة: require('../commands/fun'),
   lastseen: require('../commands/fun'),
@@ -133,6 +132,17 @@ const commands = {
   'إيقاف-بوت': require('../commands/utils'),
   سلسلة: require('../commands/utils'),
 
+  // --- التذكيرات ---
+  تذكير: require('../commands/reminder'),
+  reminder: require('../commands/reminder'),
+  remind: require('../commands/reminder'),
+
+  // --- تشخيص الهوية/الصلاحيات ---
+  ايدي: require('../commands/whoami'),
+  معرفي: require('../commands/whoami'),
+  myid: require('../commands/whoami'),
+  whoami: require('../commands/whoami'),
+
   // --- التواصل مع المطور ---
   تواصل: require('../commands/developer'),
   المطور: require('../commands/developer'),
@@ -140,8 +150,12 @@ const commands = {
   contact: require('../commands/developer'),
 };
 
+// ⚠️ إصلاح: كانت هذه الدالة تتحقق فقط من config.ownerNumbers، وبالتالي
+// الأدمن الثاني (secondAdminNumber) كان يُعامل كمستخدم عادي في: تجاوز
+// وضع الصيانة، حماية الروابط (anti-link)، وتجاوز الحظر. الآن تشمل
+// config.adminNumbers (كل المالكين + الأدمن الثاني).
 function isOwnerId(senderId) {
-  const owners = config.ownerNumbers || [config.ownerNumber];
+  const owners = config.adminNumbers || config.ownerNumbers || [config.ownerNumber];
   const digits = (senderId || '').replace(/\D/g, '');
   return owners.some((o) => o && digits.includes(o));
 }
