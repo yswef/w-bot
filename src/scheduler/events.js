@@ -100,30 +100,69 @@ function startScheduler(sock) {
   // Dynamic User-Defined Schedules
   const { getScheduledEvents } = require('../database/db');
   const allEvents = getScheduledEvents();
+  let loadedCount = 0;
   allEvents.forEach((evt) => {
-    cron.schedule(evt.cron_expression, async () => {
-      try {
-        if (evt.message.startsWith('COMMAND:')) {
-          const cmd = evt.message.split('COMMAND:')[1];
-          if (cmd === 'lock') {
-            await sock.groupSettingUpdate(evt.chat_id, 'announcement');
-            logger.info(`Scheduled Event: locked group ${evt.chat_id}`);
+    // ⚠️ إصلاح استقرار: قيمة cron_expression قد تكون غير صالحة (خطأ إدخال
+    // قديم/تلف بيانات)، وسابقاً كان node-cron يرمي استثناء يوقف تحميل بقية
+    // الجدولة بالكامل (بما فيها آية الصباح/الأذكار/نظام التنظيف). الآن نتحقق
+    // من صحة الصيغة أولاً ونتجاوز أي جدولة تالفة بدل تعطيل كل شيء.
+    if (!cron.validate(evt.cron_expression)) {
+      logger.warn(`تم تجاهل جدولة ديناميكية بصيغة cron غير صالحة (id=${evt.id}): ${evt.cron_expression}`);
+      return;
+    }
+    try {
+      cron.schedule(evt.cron_expression, async () => {
+        try {
+          if (evt.message.startsWith('COMMAND:')) {
+            const cmd = evt.message.split('COMMAND:')[1];
+            if (cmd === 'lock') {
+              await sock.groupSettingUpdate(evt.chat_id, 'announcement');
+              logger.info(`Scheduled Event: locked group ${evt.chat_id}`);
+            }
+            if (cmd === 'unlock') {
+              await sock.groupSettingUpdate(evt.chat_id, 'not_announcement');
+              logger.info(`Scheduled Event: unlocked group ${evt.chat_id}`);
+            }
+          } else {
+            await sock.sendMessage(evt.chat_id, { text: evt.message });
+            logger.info(`Scheduled Event: sent message to group ${evt.chat_id}`);
           }
-          if (cmd === 'unlock') {
-            await sock.groupSettingUpdate(evt.chat_id, 'not_announcement');
-            logger.info(`Scheduled Event: unlocked group ${evt.chat_id}`);
-          }
-        } else {
-          await sock.sendMessage(evt.chat_id, { text: evt.message });
-          logger.info(`Scheduled Event: sent message to group ${evt.chat_id}`);
+        } catch (err) {
+          logger.error(`فشل تشغيل الجدولة للنظام الديناميكي: ${err.message}`);
         }
-      } catch (err) {
-        logger.error(`فشل تشغيل الجدولة للنظام الديناميكي: ${err.message}`);
-      }
-    }, { timezone: config.timezone });
+      }, { timezone: config.timezone });
+      loadedCount += 1;
+    } catch (err) {
+      logger.error(`فشل تسجيل جدولة ديناميكية (id=${evt.id}): ${err.message}`);
+    }
   });
 
-  logger.info(`✅ تم تحميل ${allEvents.length} جدولة ديناميكية للمجموعات.`);
+  logger.info(`✅ تم تحميل ${loadedCount} جدولة ديناميكية للمجموعات.`);
+
+  // ===== نظام التذكيرات (!تذكير) - يفحص كل دقيقة التذكيرات المستحقة =====
+  // نستخدم قاعدة البيانات بدل setTimeout حتى لا تُفقد التذكيرات إذا أعيد
+  // تشغيل البوت (فقدان الاتصال بواتساب، إعادة نشر السيرفر، الخ).
+  const { getDueReminders, markReminderSent } = require('../database/db');
+  cron.schedule('* * * * *', async () => {
+    try {
+      const due = getDueReminders();
+      for (const r of due) {
+        try {
+          await sock.sendMessage(r.target_jid, {
+            text: `⏰ *تذكير!*\n\n📝 ${r.text}\n\n✅ حان الوقت الذي حددته لهذه المهمة.`,
+          });
+          markReminderSent(r.id);
+          logger.info(`تم إرسال تذكير (id=${r.id}) إلى ${r.target_jid}`);
+        } catch (err) {
+          logger.error(`فشل إرسال التذكير (id=${r.id}): ${err.message}`);
+        }
+      }
+    } catch (err) {
+      logger.error('فشل فحص التذكيرات المستحقة: ' + err.message);
+    }
+  }, { timezone: config.timezone });
+
+  logger.info('✅ تم تفعيل نظام التذكيرات (!تذكير)');
 
   // تشغيل نظام تنظيف السيرفر
   const startCleanupCron = require('./cleanup');
