@@ -34,6 +34,22 @@ function isGroupChat(chatId) {
   return chatId?.endsWith('@g.us');
 }
 
+// ⚠️ إصلاح: واتساب/Baileys أحياناً يضع "messageContextInfo" (أو مفاتيح تعريفية
+// أخرى لا تمثل محتوى فعلياً) كأول مفتاح داخل msg.message، فكان
+// Object.keys(msg.message)[0] يرجع "messageContextInfo" بدل "imageMessage"
+// الفعلي، فتفشل معرفة نوع الرسالة وبالتالي لا يتم تنزيل/حفظ الصور والوسائط.
+// هذه الدالة تتجاهل المفاتيح غير المهمة وتعيد أول نوع محتوى حقيقي.
+const NON_CONTENT_KEYS = new Set([
+  'messageContextInfo',
+  'senderKeyDistributionMessage',
+  'deviceSentMessage',
+]);
+
+function getRealMessageType(message) {
+  const keys = Object.keys(message || {}).filter((k) => !NON_CONTENT_KEYS.has(k));
+  return keys[0];
+}
+
 function resolveCustomReply(text, chatId) {
   const replies = getCustomReplies(isGroupChat(chatId) ? 'group' : 'private');
   const fallback = getCustomReplies('all');
@@ -92,7 +108,19 @@ async function handleSelfCommand(msg, sock) {
   }
 }
 
-async function handleIncomingMessages({ messages }, sock) {
+// ⚠️ إصلاح جوهري: الحدث "messages.upsert" في Baileys يُرسل معه حقل "type"
+// يكون "notify" للرسائل الحقيقية الجديدة اللحظية، أو "append"/"replace" عند
+// إعادة مزامنة السجل القديم (history sync) بعد كل اتصال/إعادة اتصال. كان
+// الكود يتجاهل هذا الحقل تماماً ويعالج كل شيء بما فيه رسائل قديمة معاد
+// إرسالها من المزامنة - وهذه الرسائل القديمة غالباً تملك مفاتيح تشفير وسائط
+// (mediaKey) منتهية أو غير قابلة للاشتقاق، فتفشل محاولة تحميل صورها بخطأ:
+// "Cannot derive from empty media key" - وهذا بالضبط ما ظهر في السجلات عند
+// كل إعادة تشغيل. تجاهل رسائل المزامنة يحل هذا نهائياً، ويمنع أيضاً معالجة
+// أوامر/ردود قديمة بالخطأ بعد كل إعادة اتصال.
+async function handleIncomingMessages({ messages, type }, sock) {
+  if (type && type !== 'notify') {
+    return; // رسائل مزامنة سجل قديم - ليست رسائل جديدة فعلية، نتجاهلها
+  }
   for (const msg of messages) {
     try {
       // تخطي الرسائل الفارغة
@@ -122,7 +150,7 @@ async function handleIncomingMessages({ messages }, sock) {
       }
 
       const text = extractText(msg.message);
-      const msgType = Object.keys(msg.message)[0];
+      const msgType = getRealMessageType(msg.message);
 
       // معالجة أحداث الانضمام للمجموعات (ترحيب تلقائي)
       const stubType = msg.message?.messageStubType;
@@ -173,7 +201,14 @@ async function handleIncomingMessages({ messages }, sock) {
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          // ⚠️ إصلاح: بدون تمرير { logger, reuploadRequest } يفشل Baileys بصمت
+          // في تنزيل الوسائط التي تحتاج إعادة طلب رابط (منتهية الصلاحية/معاد إرسالها)
+          const buffer = await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            { logger, reuploadRequest: sock.updateMediaMessage }
+          );
           const dir = path.join(__dirname, '..', '..', 'media_store');
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           const ext = msgType.replace('Message', '');
