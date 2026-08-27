@@ -1,53 +1,130 @@
 const { getLastSeen } = require('../database/db');
+const logger = require('../utils/logger');
 
-// شخصيات ذكور معروفة (تُستخدم مع أمر .زوج)
-const maleCharacters = [
-  { name: 'أستا (Asta)', image: 'https://i.pinimg.com/736x/87/40/67/87406790d9b4b0eb1a719d363297a7a5.jpg' },
-  { name: 'يامي سوكيهيرو (Yami)', image: 'https://i.pinimg.com/736x/43/66/dc/4366dcce596fc8eb3ddedae34f6ba6df.jpg' },
-  { name: 'يونو (Yuno)', image: 'https://i.pinimg.com/736x/d6/f1/b7/d6f1b7d5e49eeebfceca8ccaf745a96f.jpg' },
-  { name: 'جوليوس (Julius)', image: 'https://i.pinimg.com/736x/67/cc/d6/67ccd6abec7e928236d90a6e3cefe18c.jpg' },
-  { name: 'فينرال (Finral)', image: 'https://i.pinimg.com/736x/0a/63/06/0a630623ec67a30ff16e3eb39dc75ee1.jpg' },
-  { name: 'لاك فولتيا (Luck)' },
-  { name: 'ناروتو (Naruto)' },
-  { name: 'ساسكي (Sasuke)' },
-  { name: 'لوفي (Luffy)' },
-  { name: 'زورو (Zoro)' },
-  { name: 'غوكو (Goku)' },
-  { name: 'إيتشيغو (Ichigo)' },
-  { name: 'ناتسو (Natsu)' },
-  { name: 'إيرين (Eren)' },
-  { name: 'ليفاي (Levi)' },
+// شخصيات بلاك كلوفر الأصلية (روابط صور ثابتة موثوقة) - تُستخدم حصرياً
+// مع تسمية "مملكة كلوفر" حتى لا يحدث خلط مع شخصيات مسلسلات أخرى
+const blackCloverMales = [
+  { name: 'أستا (Asta)', image: 'https://i.pinimg.com/736x/87/40/67/87406790d9b4b0eb1a719d363297a7a5.jpg', universe: 'blackclover' },
+  { name: 'يامي سوكيهيرو (Yami)', image: 'https://i.pinimg.com/736x/43/66/dc/4366dcce596fc8eb3ddedae34f6ba6df.jpg', universe: 'blackclover' },
+  { name: 'يونو (Yuno)', image: 'https://i.pinimg.com/736x/d6/f1/b7/d6f1b7d5e49eeebfceca8ccaf745a96f.jpg', universe: 'blackclover' },
+  { name: 'جوليوس (Julius)', image: 'https://i.pinimg.com/736x/67/cc/d6/67ccd6abec7e928236d90a6e3cefe18c.jpg', universe: 'blackclover' },
+  { name: 'فينرال (Finral)', image: 'https://i.pinimg.com/736x/0a/63/06/0a630623ec67a30ff16e3eb39dc75ee1.jpg', universe: 'blackclover' },
 ];
 
-// شخصيات إناث معروفة (تُستخدم مع أمر .زوجة)
-const femaleCharacters = [
-  { name: 'نويلي سيلفا (Noelle)', image: 'https://i.pinimg.com/736x/21/df/b6/21dfb6ba4f1c1fce727289569ed9aeb5.jpg' },
-  { name: 'ميريليونا (Mereoleona)', image: 'https://i.pinimg.com/736x/01/a0/0c/01a00cc91866ff3428d000cd23a544f8.jpg' },
-  { name: 'فانيسا (Vanessa)', image: 'https://i.pinimg.com/736x/95/9b/38/959b380feecfb6cdd2e08df2b9442ef5.jpg' },
-  { name: 'تشارمي (Charmy)', image: 'https://i.pinimg.com/736x/ff/15/48/ff1548e6db966beab75083ece49efac9.jpg' },
-  { name: 'ساكورا (Sakura)' },
-  { name: 'نامي (Nami)' },
-  { name: 'هيناتا (Hinata)' },
-  { name: 'روكيا (Rukia)' },
-  { name: 'إيرزا (Erza)' },
-  { name: 'لوسي (Lucy)' },
-  { name: 'ميكاسا (Mikasa)' },
-  { name: 'أسونا (Asuna)' },
+const blackCloverFemales = [
+  { name: 'نويلي سيلفا (Noelle)', image: 'https://i.pinimg.com/736x/21/df/b6/21dfb6ba4f1c1fce727289569ed9aeb5.jpg', universe: 'blackclover' },
+  { name: 'ميريليونا (Mereoleona)', image: 'https://i.pinimg.com/736x/01/a0/0c/01a00cc91866ff3428d000cd23a544f8.jpg', universe: 'blackclover' },
+  { name: 'فانيسا (Vanessa)', image: 'https://i.pinimg.com/736x/95/9b/38/959b380feecfb6cdd2e08df2b9442ef5.jpg', universe: 'blackclover' },
+  { name: 'تشارمي (Charmy)', image: 'https://i.pinimg.com/736x/ff/15/48/ff1548e6db966beab75083ece49efac9.jpg', universe: 'blackclover' },
 ];
 
-// كل الشخصيات مجتمعة (لأمر .زوجني العام)
-const blackCloverCharacters = [...maleCharacters, ...femaleCharacters];
+// شخصيات معروفة وآمنة (بطلات/أبطال شونين مشهورون) من مسلسلات أخرى - بدون
+// رابط صورة ثابت، تُجلب صورتها الحقيقية تلقائياً وقت الطلب (انظر
+// getCharacterImageUrl) بدل حفظ روابط قد تنكسر مع الوقت.
+const otherAnimeMales = [
+  { name: 'لاك فولتيا (Luck)', universe: 'other' },
+  { name: 'ناروتو (Naruto)', universe: 'other' },
+  { name: 'ساسكي (Sasuke)', universe: 'other' },
+  { name: 'لوفي (Luffy)', universe: 'other' },
+  { name: 'زورو (Zoro)', universe: 'other' },
+  { name: 'غوكو (Goku)', universe: 'other' },
+  { name: 'إيتشيغو (Ichigo)', universe: 'other' },
+  { name: 'ناتسو (Natsu)', universe: 'other' },
+  { name: 'إيرين (Eren)', universe: 'other' },
+  { name: 'ليفاي (Levi)', universe: 'other' },
+];
 
-const animeQuotes = [
+const otherAnimeFemales = [
+  { name: 'ساكورا (Sakura)', universe: 'other' },
+  { name: 'نامي (Nami)', universe: 'other' },
+  { name: 'هيناتا (Hinata)', universe: 'other' },
+  { name: 'روكيا (Rukia)', universe: 'other' },
+  { name: 'إيرزا (Erza)', universe: 'other' },
+  { name: 'لوسي (Lucy)', universe: 'other' },
+  { name: 'ميكاسا (Mikasa)', universe: 'other' },
+  { name: 'أسونا (Asuna)', universe: 'other' },
+];
+
+// القوائم الكاملة المستخدمة في أوامر .زوج/.زوجة/.انمي
+const maleCharacters = [...blackCloverMales, ...otherAnimeMales];
+const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales];
+const blackCloverCharacters = [...blackCloverMales, ...blackCloverFemales];
+const allCharacters = [...maleCharacters, ...femaleCharacters];
+
+// اقتباسات بلاك كلوفر - تُستخدم فقط مع شخصيات بلاك كلوفر الحقيقية
+const blackCloverQuotes = [
   'حتى لو لم أكن أمتلك سحراً، سأصبح إمبراطور السحر! ✨',
   'تجاوز حدودك هنا والآن! ⚔️',
   'أنا لن أستسلم، هذا هو سحري! 🍀',
-  'السحر ليس كل شيء، الإرادة هي ما تصنع الفارق 🌟',
-  'في عالم السحر، من لا يملك القوة عليه أن يملك العزيمة 🔥'
+];
+
+// اقتباسات عامة محايدة - لا تنسب لمسلسل معين، تصلح لأي شخصية أنمي أخرى
+const genericAnimeQuotes = [
+  'الإرادة هي ما تصنع الفارق 🌟',
+  'كل بطل بدأ يوماً من نقطة الصفر 🔥',
+  'المغامرة الحقيقية تبدأ من هنا! 🌸',
 ];
 
 function getRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
+}
+
+// يستخرج الاسم الإنجليزي من صيغة "الاسم بالعربي (English Name)"
+function extractEnglishName(displayName) {
+  const match = displayName.match(/\(([^)]+)\)/);
+  return match ? match[1] : displayName;
+}
+
+// ذاكرة تخزين مؤقت في الجلسة الحالية لروابط صور الشخصيات (نجاح وفشل)
+// حتى لا نستدعي API خارجي في كل مرة يُطلب فيها نفس الاسم
+const characterImageCache = new Map();
+
+// يجلب رابط صورة حقيقية لشخصية معروفة عبر البحث باسمها (Jikan API)
+// مع مهلة قصيرة، ونعيد المحاولة مرة واحدة إذا كان الخادم مزدحماً (5xx)
+async function getCharacterImageUrl(displayName) {
+  const englishName = extractEnglishName(displayName);
+  if (characterImageCache.has(englishName)) {
+    return characterImageCache.get(englishName);
+  }
+
+  const attempt = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(englishName)}&limit=1`, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'AstaBot/1.0', Accept: 'application/json' },
+      });
+      if (!res.ok) {
+        const err = new Error(`HTTP ${res.status}`);
+        err.statusCode = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      return data?.data?.[0]?.images?.jpg?.image_url || null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
+  let url = null;
+  try {
+    url = await attempt();
+  } catch (err) {
+    if ([429, 502, 503, 504].includes(err.statusCode)) {
+      await new Promise((r) => setTimeout(r, 1200));
+      try {
+        url = await attempt();
+      } catch (err2) {
+        logger.warn(`فشل جلب صورة الشخصية "${englishName}" بعد إعادة المحاولة: ${err2.message}`);
+      }
+    } else {
+      logger.warn(`فشل جلب صورة الشخصية "${englishName}": ${err.message}`);
+    }
+  }
+
+  characterImageCache.set(englishName, url); // نخزّن حتى null لتفادي تكرار المحاولات الفاشلة بلا داعٍ
+  return url;
 }
 
 async function fetchImageSafe(url) {
@@ -74,71 +151,54 @@ async function fetchImageSafe(url) {
   }
 }
 
-async function sendMarriageResult(sock, msg, chatId, character, title) {
-  const quote = getRandom(animeQuotes);
-  const response = `💖 ${title}\n\n💍 الشريك المختار هو: *${character.name}* 🌸\n\n💬 ${quote}`;
-  if (character.image) {
+// يبني ويرسل نتيجة اختيار شخصية (مستخدَم في .زوج / .زوجة / .انمي)
+// إذا لم تملك الشخصية رابط صورة ثابت، يحاول جلب واحد ديناميكياً باسمها
+async function sendCharacterResult(sock, msg, chatId, character, title) {
+  const quotePool = character.universe === 'blackclover' ? blackCloverQuotes : genericAnimeQuotes;
+  const quote = getRandom(quotePool);
+  const response = `${title}\n\n⚔️ *${character.name}* 🌸\n\n💬 ${quote}`;
+
+  const imageUrl = character.image || (await getCharacterImageUrl(character.name));
+
+  if (imageUrl) {
     try {
-      const imgBuffer = await fetchImageSafe(character.image);
+      const imgBuffer = await fetchImageSafe(imageUrl);
       await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
       return;
     } catch {
-      // نكمل بالنص فقط إن فشل تحميل الصورة
+      // فشلت محاولة تحميل صورة حقيقية كانت موجودة - نعلم المستخدم بصدق
+      await sock.sendMessage(chatId, { text: response + '\n\n*(تعذر تحميل الصورة هذه المرة 💥)*' }, { quoted: msg });
+      return;
     }
   }
+  // لا توجد صورة متاحة أصلاً لهذه الشخصية - لا داعي لادعاء وجود خطأ في التحميل
   await sock.sendMessage(chatId, { text: response }, { quoted: msg });
 }
 
 module.exports = async function funCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-  // إصلاح: أمر انمي يرسل صورة الشخصية مع الاسم والمقولة
+  // ⚠️ إصلاح شامل لأمر .انمي: كان يعتمد على شخصية عشوائية بالكامل من
+  // خارج المسلسل (Jikan API) قد تكون من أي عمل - بما فيه أعمال غير مناسبة
+  // لمجموعة عامة - وكان يفشل أحياناً بسبب بطء/تعطل ذلك الـ API. الآن يختار
+  // من قائمتنا المحلية المُنسّقة (شخصيات شونين معروفة ومناسبة للجميع)، وتُجلب
+  // صورة الشخصية الحقيقية بشكل موثوق مع إعادة محاولة عند الحاجة.
   if (commandKey === 'anime' || commandKey === 'انمي') {
-    try {
-      const res = await fetch('https://api.jikan.moe/v4/random/characters');
-      const data = await res.json();
-      const char = data.data;
-      const text = `🌸 *مملكة الأنمي*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${char.name}*\n${char.name_kanji ? `(${char.name_kanji})\n` : ''}\n💬 "${getRandom(animeQuotes)}"`;
-      const imageUrl = char.images.jpg.image_url;
-
-      try {
-        const imgBuffer = await fetchImageSafe(imageUrl);
-        await sock.sendMessage(chatId, { image: imgBuffer, caption: text }, { quoted: msg });
-      } catch (imgErr) {
-        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: text }, { quoted: msg });
-      }
-    } catch (err) {
-      // Fallback in case of Jikan API failure or rate limit
-      const character = getRandom(blackCloverCharacters);
-      const text = `🌸 *مملكة كلوفر*\n\nشخصية الأنمي الخاصة بك اليوم:\n⚔️ *${character.name}*\n\n💬 "${getRandom(animeQuotes)}"`;
-      await sock.sendMessage(chatId, { text: text + '\n\n*(عذرا، السحر الخاص بي لم يتمكن من جلب الصورة! 💥)*' }, { quoted: msg });
-    }
-    return;
-  }
-
-  // ===== زوجني (عام - أي شخصية) =====
-  if (commandKey === 'زوجني') {
-    try {
-      const res = await fetch('https://api.jikan.moe/v4/random/characters');
-      const data = await res.json();
-      const char = data.data;
-      await sendMarriageResult(sock, msg, chatId, { name: char.name, image: char.images?.jpg?.image_url }, 'لقد تم اختيار شريك حياتك من عالم الأنمي!');
-    } catch (err) {
-      const character = getRandom(blackCloverCharacters);
-      await sendMarriageResult(sock, msg, chatId, character, 'لقد تم اختيار شريك حياتك من عالم بلاك كلوفر!');
-    }
+    const character = getRandom(allCharacters);
+    const title = character.universe === 'blackclover' ? '🌸 *مملكة كلوفر*' : '🌸 *عالم الأنمي*';
+    await sendCharacterResult(sock, msg, chatId, character, `${title}\n\nشخصية الأنمي الخاصة بك اليوم:`);
     return;
   }
 
   // ===== زوج (شخصية ذكر) =====
   if (commandKey === 'زوج') {
     const character = getRandom(maleCharacters);
-    await sendMarriageResult(sock, msg, chatId, character, 'زوجك السحري هو:');
+    await sendCharacterResult(sock, msg, chatId, character, '💖 زوجك السحري هو:');
     return;
   }
 
   // ===== زوجة (شخصية أنثى) =====
   if (commandKey === 'زوجة') {
     const character = getRandom(femaleCharacters);
-    await sendMarriageResult(sock, msg, chatId, character, 'زوجتك السحرية هي:');
+    await sendCharacterResult(sock, msg, chatId, character, '💖 زوجتك السحرية هي:');
     return;
   }
 
