@@ -26,6 +26,11 @@ function fetchJSONOnce(url, timeoutMs = 10000) {
                     err.statusCode = 429;
                     return reject(err);
                 }
+                if ([502, 503, 504].includes(res.statusCode)) {
+                    const err = new Error(`Upstream unavailable (${res.statusCode})`);
+                    err.statusCode = res.statusCode;
+                    return reject(err);
+                }
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     return reject(new Error(`HTTP ${res.statusCode}`));
                 }
@@ -47,9 +52,13 @@ async function fetchJSON(url, retries = 2) {
     try {
         return await fetchJSONOnce(url);
     } catch (err) {
-        if (retries > 0 && err.statusCode === 429) {
-            // Jikan API يقيّد الطلبات (3 طلبات/ثانية تقريباً) - ننتظر قليلاً ونعيد المحاولة
-            await new Promise(r => setTimeout(r, 1200));
+        // ⚠️ إصلاح: كان يعيد المحاولة فقط عند 429 (Rate Limit)، لكن Jikan
+        // كثيراً ما يرجع 502/503/504 (السيرفر مزدحم/بطيء) خصوصاً عند
+        // الاستضافة على منصات مثل Railway. الآن نعيد المحاولة أيضاً في هذه
+        // الحالات مع انتظار قصير قبل كل محاولة.
+        const retryableCodes = [429, 502, 503, 504];
+        if (retries > 0 && retryableCodes.includes(err.statusCode)) {
+            await new Promise(r => setTimeout(r, 1500));
             return fetchJSON(url, retries - 1);
         }
         throw err;
