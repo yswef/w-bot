@@ -64,11 +64,12 @@ function deleteIslamicSchedule(id) {
 }
 
 module.exports = async function islamicCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-    const isOwner =
-        senderId.includes(config.ownerNumber) ||
-        senderId === config.ownerNumber ||
-        senderId.includes('967735076371') || // الأدمن الثاني
-        senderId.replace(/\D/g, '').includes('967735076371');
+    // ⚠️ إصلاح: كان الرقم الثاني مكتوباً يدوياً (hardcoded) بدل قراءته من
+    // الإعدادات، فأي تغيير في .env لرقم الأدمن الثاني لا ينعكس هنا.
+    // الآن يستخدم config.adminNumbers (كل المالكين + الأدمن الثاني ديناميكياً).
+    const digits = (senderId || '').replace(/\D/g, '');
+    const admins = config.adminNumbers || [config.ownerNumber];
+    const isOwner = admins.some((a) => a && digits.includes(a));
 
     // ===== آية عشوائية =====
     if (commandKey === 'آية' || commandKey === 'aaya') {
