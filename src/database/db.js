@@ -312,6 +312,31 @@ function deleteReminder(id) {
   return db.prepare(`DELETE FROM reminders WHERE id = ?`).run(id);
 }
 
+// =============================================
+// 🖼️ ذاكرة تخزين دائمة لصور شخصيات الأنمي (character_image_cache)
+// حتى لا نُضطر لطلب نفس الشخصية أكثر من مرة واحدة عبر عمر البوت كله
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS character_image_cache (
+    name TEXT PRIMARY KEY,
+    image_url TEXT,
+    updated_at INTEGER NOT NULL
+  )
+`);
+
+function getCachedCharacterImage(name) {
+  const row = db.prepare(`SELECT image_url FROM character_image_cache WHERE name = ?`).get(name);
+  return row ? row.image_url : undefined; // undefined = غير مخزّن أصلاً، null = بحثنا سابقاً ولم نجد صورة
+}
+
+function setCachedCharacterImage(name, imageUrl) {
+  db.prepare(`
+    INSERT INTO character_image_cache (name, image_url, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(name) DO UPDATE SET image_url = excluded.image_url, updated_at = excluded.updated_at
+  `).run(name, imageUrl, Date.now());
+}
+
 module.exports = {
   db,
   saveMessage,
@@ -347,4 +372,6 @@ module.exports = {
   markReminderSent,
   getPendingReminders,
   deleteReminder,
+  getCachedCharacterImage,
+  setCachedCharacterImage,
 };
