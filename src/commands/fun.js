@@ -1,101 +1,102 @@
 const { getLastSeen, getCachedCharacterImage, setCachedCharacterImage } = require('../database/db');
 const logger = require('../utils/logger');
 
-// شخصيات بلاك كلوفر الأصلية (روابط صور ثابتة موثوقة) - تُستخدم حصرياً
-// مع تسمية "مملكة كلوفر" حتى لا يحدث خلط مع شخصيات مسلسلات أخرى
+// شخصيات بلاك كلوفر - روابط صور ثابتة موثوقة (لا تعتمد على أي API خارجي)
 const blackCloverMales = [
-  { name: 'أستا (Asta)', image: 'https://i.pinimg.com/736x/87/40/67/87406790d9b4b0eb1a719d363297a7a5.jpg', universe: 'blackclover' },
-  { name: 'يامي سوكيهيرو (Yami)', image: 'https://i.pinimg.com/736x/43/66/dc/4366dcce596fc8eb3ddedae34f6ba6df.jpg', universe: 'blackclover' },
-  { name: 'يونو (Yuno)', image: 'https://i.pinimg.com/736x/d6/f1/b7/d6f1b7d5e49eeebfceca8ccaf745a96f.jpg', universe: 'blackclover' },
-  { name: 'جوليوس (Julius)', image: 'https://i.pinimg.com/736x/67/cc/d6/67ccd6abec7e928236d90a6e3cefe18c.jpg', universe: 'blackclover' },
-  { name: 'فينرال (Finral)', image: 'https://i.pinimg.com/736x/0a/63/06/0a630623ec67a30ff16e3eb39dc75ee1.jpg', universe: 'blackclover' },
+  { name: 'أستا (Asta)', searchName: 'Asta', image: 'https://i.pinimg.com/736x/87/40/67/87406790d9b4b0eb1a719d363297a7a5.jpg', universe: 'blackclover', quote: 'لا أملك سحراً لكن أملك إرادة لا تنكسر! ⚔️' },
+  { name: 'يامي سوكيهيرو (Yami)', searchName: 'Yami Sukehiro', image: 'https://i.pinimg.com/736x/43/66/dc/4366dcce596fc8eb3ddedae34f6ba6df.jpg', universe: 'blackclover', quote: 'القوة الحقيقية تأتي من الهدوء قبل العاصفة 🖤' },
+  { name: 'يونو (Yuno)', searchName: 'Yuno Grinberryall', image: 'https://i.pinimg.com/736x/d6/f1/b7/d6f1b7d5e49eeebfceca8ccaf745a96f.jpg', universe: 'blackclover', quote: 'الريح تحمل حلمي نحو القمة 🌪️' },
+  { name: 'جوليوس (Julius)', searchName: 'Julius Novachrono', image: 'https://i.pinimg.com/736x/67/cc/d6/67ccd6abec7e928236d90a6e3cefe18c.jpg', universe: 'blackclover', quote: 'التضحية من أجل الآخرين هي أسمى أنواع السحر ✨' },
+  { name: 'فينرال (Finral)', searchName: 'Finral Roulacase', image: 'https://i.pinimg.com/736x/0a/63/06/0a630623ec67a30ff16e3eb39dc75ee1.jpg', universe: 'blackclover', quote: 'حتى أبسط الأبواب قد تقود لأعظم الفرص 🌀' },
 ];
 
 const blackCloverFemales = [
-  { name: 'نويلي سيلفا (Noelle)', image: 'https://i.pinimg.com/736x/21/df/b6/21dfb6ba4f1c1fce727289569ed9aeb5.jpg', universe: 'blackclover' },
-  { name: 'ميريليونا (Mereoleona)', image: 'https://i.pinimg.com/736x/01/a0/0c/01a00cc91866ff3428d000cd23a544f8.jpg', universe: 'blackclover' },
-  { name: 'فانيسا (Vanessa)', image: 'https://i.pinimg.com/736x/95/9b/38/959b380feecfb6cdd2e08df2b9442ef5.jpg', universe: 'blackclover' },
-  { name: 'تشارمي (Charmy)', image: 'https://i.pinimg.com/736x/ff/15/48/ff1548e6db966beab75083ece49efac9.jpg', universe: 'blackclover' },
+  { name: 'نويلي سيلفا (Noelle)', searchName: 'Noelle Silva', image: 'https://i.pinimg.com/736x/21/df/b6/21dfb6ba4f1c1fce727289569ed9aeb5.jpg', universe: 'blackclover', quote: 'لم أعد تلك الفتاة الضعيفة، أنا الآن فارسة الماء 🌊' },
+  { name: 'ميريليونا (Mereoleona)', searchName: 'Mereoleona Vermillion', image: 'https://i.pinimg.com/736x/01/a0/0c/01a00cc91866ff3428d000cd23a544f8.jpg', universe: 'blackclover', quote: 'القوة تُصقل بالنار لا بالراحة 🔥' },
+  { name: 'فانيسا (Vanessa)', searchName: 'Vanessa Enoteca', image: 'https://i.pinimg.com/736x/95/9b/38/959b380feecfb6cdd2e08df2b9442ef5.jpg', universe: 'blackclover', quote: 'الحياة كلها قماشة، وأنا أرسم قدري بنفسي 🧵' },
+  { name: 'تشارمي (Charmy)', searchName: 'Charmy Pappitson', image: 'https://i.pinimg.com/736x/ff/15/48/ff1548e6db966beab75083ece49efac9.jpg', universe: 'blackclover', quote: 'أفضل طريق للقلب يمر عبر معدة ممتلئة 🍞' },
 ];
 
-// شخصيات معروفة وآمنة (بطلات/أبطال شونين مشهورون) من مسلسلات أخرى - بدون
-// رابط صورة ثابت، تُجلب صورتها الحقيقية تلقائياً وقت الطلب (انظر
-// getCharacterImageUrl) بدل حفظ روابط قد تنكسر مع الوقت.
+// شخصيات معروفة من مسلسلات أخرى - بلا رابط صورة ثابت، تُجلب صورتها
+// الحقيقية تلقائياً (انظر getCharacterImageUrl) باستخدام اسمها الكامل
+// الدقيق (searchName) لتفادي أي التباس مع شخصية أخرى بنفس النطق تقريباً
 const otherAnimeMales = [
-  { name: 'لاك فولتيا (Luck)', universe: 'other' },
-  { name: 'ناروتو (Naruto)', universe: 'other' },
-  { name: 'ساسكي (Sasuke)', universe: 'other' },
-  { name: 'لوفي (Luffy)', universe: 'other' },
-  { name: 'زورو (Zoro)', universe: 'other' },
-  { name: 'غوكو (Goku)', universe: 'other' },
-  { name: 'إيتشيغو (Ichigo)', universe: 'other' },
-  { name: 'ناتسو (Natsu)', universe: 'other' },
-  { name: 'إيرين (Eren)', universe: 'other' },
-  { name: 'ليفاي (Levi)', universe: 'other' },
+  { name: 'لاك فولتيا (Luck)', searchName: 'Luck Voltia', universe: 'other', quote: 'المخاطرة هي التوابل الحقيقية للمعركة 🎲' },
+  { name: 'ناروتو (Naruto)', searchName: 'Naruto Uzumaki', universe: 'other', quote: 'لن أتراجع عن كلمتي، فهذا وعدي الذي لا يتغير! 🍥' },
+  { name: 'ساسكي (Sasuke)', searchName: 'Sasuke Uchiha', universe: 'other', quote: 'القوة وحدها لا تكفي دون هدف واضح ⚡' },
+  { name: 'لوفي (Luffy)', searchName: 'Monkey D. Luffy', universe: 'other', quote: 'سأصبح ملك القراصنة، هذا قراري ولن يتغير! 🏴‍☠️' },
+  { name: 'زورو (Zoro)', searchName: 'Roronoa Zoro', universe: 'other', quote: 'الطريق للقمة مليء بالسقوط، لكنني لن أتراجع أبداً ⚔️' },
+  { name: 'غوكو (Goku)', searchName: 'Son Goku', universe: 'other', quote: 'القتال ضد الأقوياء هو ما يجعلني أشعر بأنني حي! 🔥' },
+  { name: 'إيتشيغو (Ichigo)', searchName: 'Ichigo Kurosaki', universe: 'other', quote: 'سأحمي من أحب مهما كلفني الأمر 🗡️' },
+  { name: 'ناتسو (Natsu)', searchName: 'Natsu Dragneel', universe: 'other', quote: 'طالما ناري مشتعلة، لن أستسلم أبداً 🔥' },
+  { name: 'إيرين (Eren)', searchName: 'Eren Yeager', universe: 'other', quote: 'سأقاتل حتى أحرر نفسي من هذا القفص 🗡️' },
+  { name: 'ليفاي (Levi)', searchName: 'Levi Ackerman', universe: 'other', quote: 'اختر بحكمة، فلا وقت للندم لاحقاً 🖤' },
+  { name: 'تانجيرو (Tanjiro)', searchName: 'Tanjiro Kamado', universe: 'other', quote: 'سأحمي عائلتي مهما حدث، هذا قسمي الذي لا يتغير 🌊' },
+  { name: 'ميدوريا (Izuku)', searchName: 'Izuku Midoriya', universe: 'other', quote: 'يمكنك أن تصبح بطلاً حتى لو بدأت من الصفر 💚' },
+  { name: 'إدوارد (Edward Elric)', searchName: 'Edward Elric', universe: 'other', quote: 'لكل شيء تكافؤ، وثمن النهوض دائماً يستحق الألم ⚙️' },
+  { name: 'غون (Gon)', searchName: 'Gon Freecss', universe: 'other', quote: 'لن أتوقف حتى أحقق ما وعدت به نفسي 🎣' },
 ];
 
 const otherAnimeFemales = [
-  { name: 'ساكورا (Sakura)', universe: 'other' },
-  { name: 'نامي (Nami)', universe: 'other' },
-  { name: 'هيناتا (Hinata)', universe: 'other' },
-  { name: 'روكيا (Rukia)', universe: 'other' },
-  { name: 'إيرزا (Erza)', universe: 'other' },
-  { name: 'لوسي (Lucy)', universe: 'other' },
-  { name: 'ميكاسا (Mikasa)', universe: 'other' },
-  { name: 'أسونا (Asuna)', universe: 'other' },
+  { name: 'ساكورا (Sakura)', searchName: 'Sakura Haruno', universe: 'other', quote: 'الشفاء أيضاً نوع من أنواع القوة 🌸' },
+  { name: 'نامي (Nami)', searchName: 'Nami', universe: 'other', quote: 'خريطتي إلى الحرية ترسمها يدي وحدها 🗺️' },
+  { name: 'هيناتا (Hinata)', searchName: 'Hinata Hyuga', universe: 'other', quote: 'الخطوة الصغيرة بثقة أفضل من الوقوف بالمكان 🌸' },
+  { name: 'روكيا (Rukia)', searchName: 'Rukia Kuchiki', universe: 'other', quote: 'الواجب لا يمنع القلب من الشعور ❄️' },
+  { name: 'إيرزا (Erza)', searchName: 'Erza Scarlet', universe: 'other', quote: 'قوّي داخلك أولاً، فالدروع وحدها لا تحمي قلباً هشاً ⚔️' },
+  { name: 'لوسي (Lucy)', searchName: 'Lucy Heartfilia', universe: 'other', quote: 'الصداقة الحقيقية أقوى من أي سحر ✨' },
+  { name: 'ميكاسا (Mikasa)', searchName: 'Mikasa Ackerman', universe: 'other', quote: 'العالم قاسٍ، لكن من أحبهم يستحقون كل قوتي 🗡️' },
+  { name: 'أسونا (Asuna)', searchName: 'Asuna Yuuki', universe: 'other', quote: 'لن أنتظر أن يُنقذني أحد، سأقاتل بنفسي ⚔️' },
+  { name: 'نيزوكو (Nezuko)', searchName: 'Nezuko Kamado', universe: 'other', quote: 'حتى في أحلك الظروف، يبقى الحب سبب صمودي 🌸' },
+  { name: 'أوتشاكو (Ochaco)', searchName: 'Ochaco Uraraka', universe: 'other', quote: 'سأرتقي بجهدي الخاص، خطوة بخطوة 💪' },
+  { name: 'وينري (Winry)', searchName: 'Winry Rockbell', universe: 'other', quote: 'أصلح ما تكسّر، وأمنح الأمل شكلاً جديداً 🔧' },
+  { name: 'كاغومي (Kagome)', searchName: 'Kagome Higurashi', universe: 'other', quote: 'بين عالمين، اخترت أن أقاتل من أجل من أحب ✨' },
 ];
 
 // القوائم الكاملة المستخدمة في أوامر .زوج/.زوجة/.انمي
 const maleCharacters = [...blackCloverMales, ...otherAnimeMales];
 const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales];
-const blackCloverCharacters = [...blackCloverMales, ...blackCloverFemales];
 const allCharacters = [...maleCharacters, ...femaleCharacters];
-
-// اقتباسات بلاك كلوفر - تُستخدم فقط مع شخصيات بلاك كلوفر الحقيقية
-const blackCloverQuotes = [
-  'حتى لو لم أكن أمتلك سحراً، سأصبح إمبراطور السحر! ✨',
-  'تجاوز حدودك هنا والآن! ⚔️',
-  'أنا لن أستسلم، هذا هو سحري! 🍀',
-];
-
-// اقتباسات عامة محايدة - لا تنسب لمسلسل معين، تصلح لأي شخصية أنمي أخرى
-const genericAnimeQuotes = [
-  'الإرادة هي ما تصنع الفارق 🌟',
-  'كل بطل بدأ يوماً من نقطة الصفر 🔥',
-  'المغامرة الحقيقية تبدأ من هنا! 🌸',
-];
 
 function getRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-// يستخرج الاسم الإنجليزي من صيغة "الاسم بالعربي (English Name)"
-function extractEnglishName(displayName) {
-  const match = displayName.match(/\(([^)]+)\)/);
-  return match ? match[1] : displayName;
+// تطبيع النص للمقارنة (إزالة حالة الأحرف والرموز الزائدة) لفحص تطابق الأسماء
+function normalizeForCompare(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-// ذاكرة تخزين مؤقت داخل الجلسة الحالية أيضاً (طبقة أولى أسرع من قاعدة البيانات)
+// ⚠️ إصلاح حرج: البحث بالاسم الحر عبر API خارجي قد يُرجع شخصية مختلفة
+// تماماً بسبب تشابه الحروف (مثال حقيقي واجهناه: طلب "Lucy" أرجع صورة
+// "Luffy" لتشابه الإملاء!). قبل قبول أي نتيجة، نتحقق أن الاسم الذي
+// أرجعته الـ API فعلاً يطابق (أو يحتوي) الاسم الذي بحثنا عنه، وإلا
+// نرفضها تماماً بدل عرض صورة خاطئة لشخصية أخرى.
+function namesReasonablyMatch(searched, returned) {
+  const a = normalizeForCompare(searched);
+  const b = normalizeForCompare(returned);
+  if (!a || !b) return false;
+  const aWords = a.split(' ').filter((w) => w.length > 2);
+  const bWords = new Set(b.split(' ').filter((w) => w.length > 2));
+  // يكفي أن تتطابق كلمة واحدة مهمة (مثل الاسم الأول أو اسم العائلة)
+  return aWords.some((w) => bWords.has(w));
+}
+
+// ذاكرة تخزين مؤقت داخل الجلسة الحالية (طبقة أولى أسرع من قاعدة البيانات)
 const characterImageCache = new Map();
 
-// ⚠️ إصلاح: كنا نستخدم Jikan API (api.jikan.moe) لجلب صورة الشخصية عند
-// الطلب، لكن تبيّن أنه غير موثوق بشكل متكرر من استضافة Railway (يرجع
-// أخطاء 502/503/504 كثيراً - نفس المشكلة التي رأيناها مع أمر الأخبار).
-// الآن نستخدم AniList (graphql.anilist.co) وهو أكثر استقراراً بكثير،
-// ونُخزّن كل نتيجة ناجحة بشكل دائم في قاعدة البيانات (وليس فقط في
-// الذاكرة المؤقتة) حتى لا نحتاج طلب نفس الشخصية مرتين أبداً طوال عمر
-// البوت، حتى لو أعيد تشغيله.
-async function getCharacterImageUrl(displayName) {
-  const englishName = extractEnglishName(displayName);
-
-  if (characterImageCache.has(englishName)) {
-    return characterImageCache.get(englishName);
+// ⚠️ إصلاح: كنا نعتمد على Jikan API وتبيّن عدم استقراره (أخطاء 502/503/504
+// متكررة من استضافة Railway). الآن نستخدم AniList (أكثر استقراراً)، مع
+// التحقق من صحة تطابق الاسم قبل القبول (انظر namesReasonablyMatch)، ونُخزّن
+// كل نتيجة ناجحة بشكل دائم في قاعدة البيانات فلا تُطلب الشخصية مرتين أبداً.
+async function getCharacterImageUrl(searchName) {
+  if (characterImageCache.has(searchName)) {
+    return characterImageCache.get(searchName);
   }
 
-  const dbCached = getCachedCharacterImage(englishName);
+  const dbCached = getCachedCharacterImage(searchName);
   if (dbCached !== undefined) {
-    characterImageCache.set(englishName, dbCached);
-    return dbCached; // قد تكون null (بحثنا سابقاً ولم نجد) أو رابط صورة حقيقي
+    characterImageCache.set(searchName, dbCached);
+    return dbCached; // قد تكون null (بحث سابق فاشل) أو رابط صورة حقيقي
   }
 
   const attempt = async () => {
@@ -107,8 +108,8 @@ async function getCharacterImageUrl(displayName) {
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-          query: `query ($search: String) { Character(search: $search) { image { large } } }`,
-          variables: { search: englishName },
+          query: `query ($search: String) { Character(search: $search) { name { full } image { large } } }`,
+          variables: { search: searchName },
         }),
       });
       if (!res.ok) {
@@ -117,7 +118,13 @@ async function getCharacterImageUrl(displayName) {
         throw err;
       }
       const data = await res.json();
-      return data?.data?.Character?.image?.large || null;
+      const character = data?.data?.Character;
+      if (!character?.image?.large) return null;
+      if (!namesReasonablyMatch(searchName, character.name?.full)) {
+        logger.warn(`تجاهل نتيجة غير مطابقة: بحثنا عن "${searchName}" فأرجعت API اسم "${character.name?.full}"`);
+        return null;
+      }
+      return character.image.large;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -132,23 +139,44 @@ async function getCharacterImageUrl(displayName) {
       try {
         url = await attempt();
       } catch (err2) {
-        logger.warn(`فشل جلب صورة الشخصية "${englishName}" من AniList بعد إعادة المحاولة: ${err2.message}`);
+        logger.warn(`فشل جلب صورة الشخصية "${searchName}" من AniList بعد إعادة المحاولة: ${err2.message}`);
       }
     } else {
-      logger.warn(`فشل جلب صورة الشخصية "${englishName}" من AniList: ${err.message}`);
+      logger.warn(`فشل جلب صورة الشخصية "${searchName}" من AniList: ${err.message}`);
     }
   }
 
-  characterImageCache.set(englishName, url);
-  // نخزّن في قاعدة البيانات حتى لو null (بحث فاشل)، لتفادي إعادة محاولة
-  // فورية لنفس الاسم؛ يمكن حذف السجل يدوياً لاحقاً إذا أردنا إعادة المحاولة
-  setCachedCharacterImage(englishName, url);
+  characterImageCache.set(searchName, url);
+  setCachedCharacterImage(searchName, url);
   return url;
+}
+
+// ⚠️ ميزة جديدة: تحميل وتخزين صور كل الشخصيات مسبقاً عند بدء تشغيل البوت
+// (وليس عند أول طلب من مستخدم)، حتى تكون الأوامر سريعة وموثوقة من أول
+// استخدام. تُنادى مرة واحدة بعد نجاح الاتصال بواتساب، ولا توقف عمل
+// البوت أثناء انتظارها (تعمل في الخلفية). المهلة بين كل طلب والذي يليه
+// (1.2 ثانية) تحترم حدود معدل طلبات AniList.
+async function warmupCharacterImages() {
+  const toFetch = allCharacters.filter((c) => !c.image); // فقط من لا يملك رابط صورة ثابت
+  logger.info(`⏳ بدء تحميل مسبق لصور ${toFetch.length} شخصية أنمي...`);
+  let success = 0;
+  let failed = 0;
+  for (const character of toFetch) {
+    try {
+      const url = await getCharacterImageUrl(character.searchName);
+      if (url) success += 1;
+      else failed += 1;
+    } catch {
+      failed += 1;
+    }
+    await new Promise((r) => setTimeout(r, 1200)); // احترام حدود معدل الطلبات
+  }
+  logger.info(`✅ انتهى التحميل المسبق لصور الشخصيات: ${success} نجحت، ${failed} فشلت (ستُعاد المحاولة عند أول طلب فعلي لها).`);
 }
 
 async function fetchImageSafe(url) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const id = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -171,13 +199,10 @@ async function fetchImageSafe(url) {
 }
 
 // يبني ويرسل نتيجة اختيار شخصية (مستخدَم في .زوج / .زوجة / .انمي)
-// إذا لم تملك الشخصية رابط صورة ثابت، يحاول جلب واحد ديناميكياً باسمها
 async function sendCharacterResult(sock, msg, chatId, character, title) {
-  const quotePool = character.universe === 'blackclover' ? blackCloverQuotes : genericAnimeQuotes;
-  const quote = getRandom(quotePool);
-  const response = `${title}\n\n⚔️ *${character.name}* 🌸\n\n💬 ${quote}`;
+  const response = `${title}\n\n⚔️ *${character.name}* 🌸\n\n💬 ${character.quote}`;
 
-  const imageUrl = character.image || (await getCharacterImageUrl(character.name));
+  const imageUrl = character.image || (await getCharacterImageUrl(character.searchName));
 
   if (imageUrl) {
     try {
@@ -185,9 +210,8 @@ async function sendCharacterResult(sock, msg, chatId, character, title) {
       await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
       return;
     } catch {
-      // محاولة ثانية: نترك واتساب نفسه يجلب الصورة من الرابط مباشرة
-      // بدل تحميلها نحن أولاً - أحياناً تنجح رغم فشل التحميل اليدوي
       try {
+        // محاولة ثانية: نترك واتساب نفسه يجلب الصورة من الرابط مباشرة
         await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: response }, { quoted: msg });
         return;
       } catch {
@@ -196,16 +220,10 @@ async function sendCharacterResult(sock, msg, chatId, character, title) {
       }
     }
   }
-  // لا توجد صورة متاحة أصلاً لهذه الشخصية - لا داعي لادعاء وجود خطأ في التحميل
   await sock.sendMessage(chatId, { text: response }, { quoted: msg });
 }
 
 module.exports = async function funCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-  // ⚠️ إصلاح شامل لأمر .انمي: كان يعتمد على شخصية عشوائية بالكامل من
-  // خارج المسلسل (Jikan API) قد تكون من أي عمل - بما فيه أعمال غير مناسبة
-  // لمجموعة عامة - وكان يفشل أحياناً بسبب بطء/تعطل ذلك الـ API. الآن يختار
-  // من قائمتنا المحلية المُنسّقة (شخصيات شونين معروفة ومناسبة للجميع)، وتُجلب
-  // صورة الشخصية الحقيقية بشكل موثوق مع إعادة محاولة عند الحاجة.
   if (commandKey === 'anime' || commandKey === 'انمي') {
     const character = getRandom(allCharacters);
     const title = character.universe === 'blackclover' ? '🌸 *مملكة كلوفر*' : '🌸 *عالم الأنمي*';
@@ -213,21 +231,18 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     return;
   }
 
-  // ===== زوج (شخصية ذكر) =====
   if (commandKey === 'زوج') {
     const character = getRandom(maleCharacters);
     await sendCharacterResult(sock, msg, chatId, character, '💖 زوجك السحري هو:');
     return;
   }
 
-  // ===== زوجة (شخصية أنثى) =====
   if (commandKey === 'زوجة') {
     const character = getRandom(femaleCharacters);
     await sendCharacterResult(sock, msg, chatId, character, '💖 زوجتك السحرية هي:');
     return;
   }
 
-  // الأمر القديم بقي كما هو دون تغيير
   if (commandKey === 'lastseen' || commandKey === 'آخر-مرة' || commandKey === 'آخرمرة') {
     const target = args[0] || senderId;
     const seen = getLastSeen(chatId, target);
@@ -239,3 +254,5 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     await sock.sendMessage(chatId, { text: `👀 آخر مرة شوهدت فيها ${target} كانت: ${date}` }, { quoted: msg });
   }
 };
+
+module.exports.warmupCharacterImages = warmupCharacterImages;
