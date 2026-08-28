@@ -1,4 +1,4 @@
-const { getLastSeen } = require('../database/db');
+const { getLastSeen, getCachedCharacterImage, setCachedCharacterImage } = require('../database/db');
 const logger = require('../utils/logger');
 
 // شخصيات بلاك كلوفر الأصلية (روابط صور ثابتة موثوقة) - تُستخدم حصرياً
@@ -75,25 +75,41 @@ function extractEnglishName(displayName) {
   return match ? match[1] : displayName;
 }
 
-// ذاكرة تخزين مؤقت في الجلسة الحالية لروابط صور الشخصيات (نجاح وفشل)
-// حتى لا نستدعي API خارجي في كل مرة يُطلب فيها نفس الاسم
+// ذاكرة تخزين مؤقت داخل الجلسة الحالية أيضاً (طبقة أولى أسرع من قاعدة البيانات)
 const characterImageCache = new Map();
 
-// يجلب رابط صورة حقيقية لشخصية معروفة عبر البحث باسمها (Jikan API)
-// مع مهلة قصيرة، ونعيد المحاولة مرة واحدة إذا كان الخادم مزدحماً (5xx)
+// ⚠️ إصلاح: كنا نستخدم Jikan API (api.jikan.moe) لجلب صورة الشخصية عند
+// الطلب، لكن تبيّن أنه غير موثوق بشكل متكرر من استضافة Railway (يرجع
+// أخطاء 502/503/504 كثيراً - نفس المشكلة التي رأيناها مع أمر الأخبار).
+// الآن نستخدم AniList (graphql.anilist.co) وهو أكثر استقراراً بكثير،
+// ونُخزّن كل نتيجة ناجحة بشكل دائم في قاعدة البيانات (وليس فقط في
+// الذاكرة المؤقتة) حتى لا نحتاج طلب نفس الشخصية مرتين أبداً طوال عمر
+// البوت، حتى لو أعيد تشغيله.
 async function getCharacterImageUrl(displayName) {
   const englishName = extractEnglishName(displayName);
+
   if (characterImageCache.has(englishName)) {
     return characterImageCache.get(englishName);
+  }
+
+  const dbCached = getCachedCharacterImage(englishName);
+  if (dbCached !== undefined) {
+    characterImageCache.set(englishName, dbCached);
+    return dbCached; // قد تكون null (بحثنا سابقاً ولم نجد) أو رابط صورة حقيقي
   }
 
   const attempt = async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(englishName)}&limit=1`, {
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
         signal: controller.signal,
-        headers: { 'User-Agent': 'AstaBot/1.0', Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          query: `query ($search: String) { Character(search: $search) { image { large } } }`,
+          variables: { search: englishName },
+        }),
       });
       if (!res.ok) {
         const err = new Error(`HTTP ${res.status}`);
@@ -101,7 +117,7 @@ async function getCharacterImageUrl(displayName) {
         throw err;
       }
       const data = await res.json();
-      return data?.data?.[0]?.images?.jpg?.image_url || null;
+      return data?.data?.Character?.image?.large || null;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -111,19 +127,22 @@ async function getCharacterImageUrl(displayName) {
   try {
     url = await attempt();
   } catch (err) {
-    if ([429, 502, 503, 504].includes(err.statusCode)) {
+    if ([429, 500, 502, 503, 504].includes(err.statusCode)) {
       await new Promise((r) => setTimeout(r, 1200));
       try {
         url = await attempt();
       } catch (err2) {
-        logger.warn(`فشل جلب صورة الشخصية "${englishName}" بعد إعادة المحاولة: ${err2.message}`);
+        logger.warn(`فشل جلب صورة الشخصية "${englishName}" من AniList بعد إعادة المحاولة: ${err2.message}`);
       }
     } else {
-      logger.warn(`فشل جلب صورة الشخصية "${englishName}": ${err.message}`);
+      logger.warn(`فشل جلب صورة الشخصية "${englishName}" من AniList: ${err.message}`);
     }
   }
 
-  characterImageCache.set(englishName, url); // نخزّن حتى null لتفادي تكرار المحاولات الفاشلة بلا داعٍ
+  characterImageCache.set(englishName, url);
+  // نخزّن في قاعدة البيانات حتى لو null (بحث فاشل)، لتفادي إعادة محاولة
+  // فورية لنفس الاسم؛ يمكن حذف السجل يدوياً لاحقاً إذا أردنا إعادة المحاولة
+  setCachedCharacterImage(englishName, url);
   return url;
 }
 
@@ -166,9 +185,15 @@ async function sendCharacterResult(sock, msg, chatId, character, title) {
       await sock.sendMessage(chatId, { image: imgBuffer, caption: response }, { quoted: msg });
       return;
     } catch {
-      // فشلت محاولة تحميل صورة حقيقية كانت موجودة - نعلم المستخدم بصدق
-      await sock.sendMessage(chatId, { text: response + '\n\n*(تعذر تحميل الصورة هذه المرة 💥)*' }, { quoted: msg });
-      return;
+      // محاولة ثانية: نترك واتساب نفسه يجلب الصورة من الرابط مباشرة
+      // بدل تحميلها نحن أولاً - أحياناً تنجح رغم فشل التحميل اليدوي
+      try {
+        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: response }, { quoted: msg });
+        return;
+      } catch {
+        await sock.sendMessage(chatId, { text: response + '\n\n*(تعذر تحميل الصورة هذه المرة 💥)*' }, { quoted: msg });
+        return;
+      }
     }
   }
   // لا توجد صورة متاحة أصلاً لهذه الشخصية - لا داعي لادعاء وجود خطأ في التحميل
