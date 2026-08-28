@@ -71,6 +71,10 @@ async function startBot(sessionName = 'default') {
       }
     } else if (connection === 'open') {
       logger.info(`[${normalizedName}] ✅ Connected to WhatsApp successfully.`);
+      // تحميل مسبق لصور شخصيات الأنمي في الخلفية (لا يوقف تشغيل البوت)
+      require('./commands/fun').warmupCharacterImages().catch((err) => {
+        logger.error(`فشل التحميل المسبق لصور الشخصيات: ${err.message}`);
+      });
     }
   });
 
