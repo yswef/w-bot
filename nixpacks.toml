@@ -4,6 +4,9 @@
 # وبيئة Nixpacks الافتراضية لا تثبّتها تلقائياً.
 
 [phases.setup]
+# ملاحظة: ffmpeg ضروري لتحويل الفيديو/GIF إلى ملصق متحرك (wa-sticker-formatter
+# يستدعي ffmpeg عبر fluent-ffmpeg). بدونه يظهر خطأ "ffprobe/ffmpeg not found".
+# Note: ffmpeg is required for video/GIF -> animated sticker conversion.
 nixPkgs = [
   "nodejs_20",
   "python3",
@@ -14,6 +17,7 @@ nixPkgs = [
   "libjpeg",
   "giflib",
   "pixman",
+  "ffmpeg",
 ]
 
 [phases.install]
@@ -24,3 +28,10 @@ cmds = []
 
 [start]
 cmd = "node src/index.js"
+
+# اللوحة تحتاج أن تستمع على المنفذ الذي تحدده Railway:
+# الكود يستخدم process.env.PORT تلقائياً (انظر src/config.js -> dashboard.port)،
+# فلا تضبط PORT يدوياً هنا، واختر نفس المنفذ عند Generate Domain في
+# Settings → Networking → Public Networking.
+# The dashboard binds $PORT automatically, which is what makes the public
+# domain work — pick the same port when you click "Generate Domain".

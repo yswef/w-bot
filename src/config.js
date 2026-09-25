@@ -14,7 +14,7 @@ const extraOwnerNumbers = (process.env.EXTRA_OWNER_NUMBERS || '967784773314,9677
 // كل أرقام المالكين (بدون تكرار)
 const ownerNumbers = [...new Set([ownerNumber, ...extraOwnerNumbers])].filter(Boolean);
 
-module.exports = {
+const config = {
   prefix: process.env.COMMAND_PREFIX || '.',
   stickerPackName: process.env.STICKER_PACK_NAME || 'أستا ساما هو الأفضل',
   stickerAuthorName: process.env.STICKER_AUTHOR_NAME || 'ENG.YOUSEF',
@@ -34,4 +34,40 @@ module.exports = {
     selfCommandExecution: process.env.ENABLE_SELF_EXECUTION !== 'false',
   },
   timezone: process.env.TIMEZONE || 'Asia/Riyadh',
+
+  // =============================================
+  // 🧩 لوحة التحكم (Dashboard)
+  // =============================================
+  dashboard: {
+    // تعمل افتراضياً. لإيقافها تماماً: ENABLE_DASHBOARD=false
+    enabled: process.env.ENABLE_DASHBOARD !== 'false',
+    // على Railway/Render/Heroku لا تغيّر شيئاً: المنصة تعطي PORT تلقائياً،
+    // ونُعطي PORT الأولوية حتى يوافق المنفذ الذي يحدده النطاق العام.
+    port: Number(process.env.PORT || process.env.DASHBOARD_PORT || 3000),
+    // كلمة سر اللوحة. إذا تُركت فارغة تكون اللوحة مكشوفة لأي شخص يعرف الرابط!
+    token: (process.env.DASHBOARD_TOKEN || '').trim(),
+    // رابط اللوحة العام (اختياري). لو تُرك فارغاً يُكتشف تلقائياً من Railway.
+    publicUrl: (process.env.DASHBOARD_PUBLIC_URL || '').trim(),
+    // عدد الرسائل المعروضة في اللوحة
+    recentLimit: Number(process.env.DASHBOARD_RECENT_LIMIT || 50),
+  },
 };
+
+// يبني الرابط العام للوحة: قيمة DASHBOARD_PUBLIC_URL يدوياً، ثم متغيرات Railway
+// التي تُحقن تلقائياً بعد توليد نطاق عام (Public Networking → Generate Domain).
+config.buildPublicUrl = function buildPublicUrl() {
+  const explicit = config.dashboard.publicUrl;
+  if (explicit) return explicit.replace(/\/+$/, '');
+
+  const railwayDomain = (process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
+  if (railwayDomain) {
+    return (`${railwayDomain.startsWith('http') ? '' : 'https://'}${railwayDomain}`).replace(/\/+$/, '');
+  }
+
+  const railwayStatic = (process.env.RAILWAY_STATIC_URL || '').trim();
+  if (railwayStatic) return railwayStatic.replace(/\/+$/, '');
+
+  return `http://localhost:${config.dashboard.port}`;
+};
+
+module.exports = config;

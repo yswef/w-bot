@@ -1,7 +1,13 @@
 const { saveCustomReply, deleteCustomReply, setWelcomeMessage, getWelcomeMessage } = require('../database/db');
 const config = require('../config');
 const responses = require('../utils/responses');
-const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
+const runtimeState = require('../runtimeState');
+
+// ⚠️ نطلب sessionManager عند الحاجة فقط (lazy) لأن استيراده في أعلى الملف
+// يحدث حلقة استيراد: sessionManager -> handlers/messageHandler ->
+// handlers/commandHandler -> commands/admin -> sessionManager (غير مكتمل
+// بعد) فتصبح الدوال undefined. الطلب المتأخر يضمن الحصول عليها دائماً.
+const loadSessionManager = () => require('../sessionManager');
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
   // التحقق من صلاحية المالك - يشمل كل المالكين والأدمن الثاني
@@ -67,22 +73,53 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
     return;
   }
 
-  if (commandKey === 'لوحة') {
-    const text = `🧩 لوحة التحكم جاهزة على الرابط المحلي:\nhttp://localhost:3000\n\nالجلسات المتاحة: ${getConfiguredSessionNames().join(', ')}`;
+  if (['لوحة', 'لوحة-التحكم', 'dashboard', 'link'].includes(commandKey)) {
+    const { getConfiguredSessionNames } = loadSessionManager();
+    const dashboardUrl = config.buildPublicUrl();
+    const tokenQuery = config.dashboard.token ? `/?token=${config.dashboard.token}` : '';
+    const running = config.dashboard.enabled;
+
+    const text = running
+      ? `🧩 *لوحة التحكم أستا ساما*
+
+🌐 *الرابط:* ${dashboardUrl}${tokenQuery}
+
+🔌 *المنفذ (PORT):* ${config.dashboard.port}${process.env.PORT ? ' (مضبوط تلقائياً من المنصة)' : ' (افتراضي)'}
+🔑 *الحماية:* ${config.dashboard.token ? 'مفعّلة بـ DASHBOARD_TOKEN' : '⚠️ لا يوجد توكن — أي شخص يعرف الرابط يدخل!'}
+
+📋 *طرق فتح اللوحة:*
+1) الرابط أعلاه مباشرة في المتصفح.
+2) على Railway: Services → خدماتك → Settings → Networking → Public Networking → *Generate Domain*، ثم استخدم النطاق الذي يظهر.
+3) من سجلات التشغيل (Deploy Logs) ابحث عن سطر: "🧩 لوحة التحكم تعمل على المنفذ".
+
+🔄 *الجلسات:* نشطة: ${runtimeState.getActiveSessionNames().join(', ') || 'لا شيء'} | مضبوطة: ${getConfiguredSessionNames().join(', ')}
+
+⏱️ *زمن التشغيل:* ${Math.floor(runtimeState.getUptimeSeconds() / 60)} دقيقة`
+      : `🚫 لوحة التحكم معطّلة الآن.
+فعّلها من متغيرات البيئة بإزالة ENABLE_DASHBOARD أو ضبطه على true، ثم أعد النشر (Deploy).`;
+
     await sock.sendMessage(chatId, { text }, { quoted: msg });
     return;
   }
 
   if (commandKey === 'جلسات') {
-    const text = `🧩 الجلسات النشطة: ${getActiveSessionNames().join(', ') || 'لا توجد جلسات نشطة'}`;
-    await sock.sendMessage(chatId, { text }, { quoted: msg });
+    const { getConfiguredSessionNames, getSessionPath } = loadSessionManager();
+    const active = runtimeState.getSessions();
+    const lines = getConfiguredSessionNames().map((name) => {
+      const on = active.find((x) => x.name === name)?.connected;
+      return `${on ? '🟢' : '🔴'} ${name} — ${on ? 'متصلة' : 'غير متصلة'}\n📁 ${getSessionPath(name)}`;
+    });
+    const paths = sessionPaths.describePaths();
+    await sock.sendMessage(chatId, {
+      text: `🧩 *حالة الجلسات*\n\n${lines.join('\n')}\n\n🗄️ *قاعدة البيانات:* ${paths.databasePath}\n   مصدرها: ${paths.dbOrigin}\n🖼️ *الوسائط:* ${paths.mediaStoreDir}\n   مصدرها: ${paths.mediaOrigin}\n💽 *Volume:* ${paths.volumeMountPath || 'لا يوجد — أضِف Volume من Railway لتبقى جلستك ورسائلك بعد كل deploy'}\n\n💡 إن لم يكن المسار على Volume فستحتاج مسح QR جديد بعد كل إعادة تشغيل.`,
+    }, { quoted: msg });
     return;
   }
 
   if (commandKey === 'اعادةربط' || commandKey === 'reconnect') {
     const name = args[0] || 'default';
     await sock.sendMessage(chatId, { text: `🔄 جاري إعادة ربط الجلسة ${name}...` }, { quoted: msg });
-    await resetSession(name);
+    await loadSessionManager().resetSession(name);
     await sock.sendMessage(chatId, { text: `✅ تم إعادة ربط الجلسة ${name}` }, { quoted: msg });
     return;
   }

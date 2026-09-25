@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -8,31 +7,20 @@ const {
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const logger = require('./utils/logger');
+const config = require('./config');
+const runtimeState = require('./runtimeState');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
-// const startDashboard = require('./web/dashboard');
 
-const activeBots = new Map();
-let dashboardStarted = false;
+// ⚠️ ملاحظة معمارية: قائمة الجلسات النشطة انتقلت إلى src/runtimeState.js،
+// وأسماء/مسارات الجلسات انتقلت إلى src/sessionPaths.js.
+// السبب: كانت commands/admin.js تستدعي require('../sessionManager') في أعلى
+// الملف، بينما sessionManager يستورد الـ handlers التي تستدعي الأوامر -> حلقة
+// استيراد (circular require) تجعل الدوال المستوردة تساوي undefined، فتفشل
+// أوامر !جلسات و !اعادةربط و !لوحة. الملفات الجديدة لا تستورد شيئاً فتنهي الحلقة.
 
-function normalizeSessionName(value) {
-  return (value || 'default').trim().replace(/[\\/]+/g, '-').replace(/^\.+/, '');
-}
-
-function getConfiguredSessionNames() {
-  const raw = process.env.SESSION_NAMES || process.env.SESSION_NAME || process.env.SESSION_DIR || 'default';
-  const names = raw
-    .split(',')
-    .map((name) => normalizeSessionName(name))
-    .filter(Boolean);
-  return names.length ? names : ['default'];
-}
-
-function getSessionPath(sessionName) {
-  const baseDir = process.env.SESSION_BASE_DIR || path.join(__dirname, '..', 'session');
-  return path.join(baseDir, normalizeSessionName(sessionName));
-}
+const { normalizeSessionName, getConfiguredSessionNames, getSessionPath, getVolumeMountPath } = require('./sessionPaths');
 
 async function startBot(sessionName = 'default') {
   const normalizedName = normalizeSessionName(sessionName);
@@ -40,6 +28,13 @@ async function startBot(sessionName = 'default') {
   if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
   }
+  const volume = getVolumeMountPath();
+  logger.info(
+    `[${normalizedName}] 📂 مجلد الجلسة: ${sessionDir}` +
+    (volume
+      ? ` (على Volume تلقائياً: ${volume})`
+      : ' | ⚠️ داخل الحاوية (يُمسح مع كل deploy). من Railway: Service → Attach Volume → Mount Path = /app/data، وسيلتقطه البوت تلقائياً عبر RAILWAY_VOLUME_MOUNT_PATH بدون أي متغير إضافي.')
+  );
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
@@ -56,21 +51,30 @@ async function startBot(sessionName = 'default') {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      logger.info(`[${normalizedName}] Scan the QR code below to connect:`);
+      logger.info(`[${normalizedName}] 📱 امسح رمز QR التالي من واتساب (الأجهزة المرتبطة):`);
       qrcode.generate(qr, { small: true });
+      // نخزّن الرمز حتى تعرضه لوحة التحكم أيضاً (مفيد على Railway حيث السجلات مزعجة)
+      runtimeState.setQr(normalizedName, qr);
+      logger.info(`[${normalizedName}] نص الرمز (يمكن نسخه لأي أداة QR): ${qr}`);
+      logger.info(`[${normalizedName}] ⏳ تنتظر المسح 60 ثانية ثم يتجدد تلقائياً.`);
     }
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      logger.warn(`[${normalizedName}] Connection closed. Reconnect? ${shouldReconnect}`);
+      logger.warn(`[${normalizedName}] Connection closed (status ${statusCode}). Reconnect? ${shouldReconnect}`);
+      runtimeState.markDisconnected(normalizedName);
       if (shouldReconnect) {
         setTimeout(() => startBot(normalizedName), 3000);
       } else {
-        logger.error(`[${normalizedName}] Logged out. Delete session ${normalizedName} or use reconnect command.`);
+        runtimeState.setQr(normalizedName, null);
+        logger.error(`[${normalizedName}] Logged out. احذف مجلد الجلسة ${sessionDir} أو أرسل !اعادةربط ثم امسح QR جديد.`);
       }
     } else if (connection === 'open') {
+      runtimeState.markConnected(normalizedName);
+      runtimeState.setQr(normalizedName, null); // تم الربط بنجاح، لا حاجة للرمز
       logger.info(`[${normalizedName}] ✅ Connected to WhatsApp successfully.`);
+      logger.info(`[${normalizedName}] 🧩 رقم البوت: ${sock.user?.id || 'غير معروف'} | لوحة التحكم: ${config.buildPublicUrl()}`);
       // تحميل مسبق لصور شخصيات الأنمي في الخلفية (لا يوقف تشغيل البوت)
       require('./commands/fun').warmupCharacterImages().catch((err) => {
         logger.error(`فشل التحميل المسبق لصور الشخصيات: ${err.message}`);
@@ -82,12 +86,7 @@ async function startBot(sessionName = 'default') {
   sock.ev.on('messages.upsert', (payload) => handleIncomingMessages(payload, sock));
   sock.ev.on('messages.update', (updates) => handleMessageUpdates(updates, sock));
 
-  activeBots.set(normalizedName, sock);
-
-  // if (!dashboardStarted) {
-  //     dashboardStarted = true;
-  //     startDashboard();
-  //   }
+  runtimeState.registerBot(normalizedName, sock);
 
   if (normalizedName === getConfiguredSessionNames()[0]) {
     startScheduler(sock);
@@ -104,17 +103,17 @@ async function resetSession(sessionName = 'default') {
     fs.rmSync(sessionDir, { recursive: true, force: true });
   }
 
-  const existingBot = activeBots.get(normalizedName);
+  const existingBot = runtimeState.getBot(normalizedName)?.sock;
   if (existingBot?.ws?.close) {
     existingBot.ws.close();
   }
-  activeBots.delete(normalizedName);
+  runtimeState.unregisterBot(normalizedName);
 
   return startBot(normalizedName);
 }
 
 function getActiveSessionNames() {
-  return Array.from(activeBots.keys());
+  return runtimeState.getActiveSessionNames();
 }
 
 async function startAllSessions() {

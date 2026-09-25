@@ -254,6 +254,19 @@ module.exports = async function groupAdminCommand({ sock, msg, args, chatId, sen
         return;
     }
 
+    // ===== كشف تعديل الرسائل (Anti-Edit) — كان الأمر مسجلاً بلا تنفيذ سابقاً =====
+    if (commandKey === 'ضد_التعديل' || commandKey === 'منع-التعديل') {
+        if (!adminOrOwner) return await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_admin') }, { quoted: msg });
+        const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
+        setChatSetting(chatId, 'anti_edit', enable);
+        await sock.sendMessage(chatId, {
+            text: enable
+                ? '🕵️ تم تفعيل كشف التعديل! أي رسالة يُعدّلها صاحبها سيكشف أستا نصها الأول.'
+                : '🤐 تم إيقاف كشف التعديل في هذه المجموعة.'
+        }, { quoted: msg });
+        return;
+    }
+
     // ===== إعداد الترحيب =====
     if (commandKey === 'ترحيب' || commandKey === 'welcome') {
         if (!adminOrOwner) return await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_admin') }, { quoted: msg });

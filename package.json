@@ -1,12 +1,14 @@
 {
   "name": "whatsapp-auto-bot",
   "version": "1.0.0",
-  "description": "بوت واتساب مجاني: تسجيل رسائل، كشف الحذف، ردود آلية، أوامر، ملصقات، وفعاليات مجدولة",
+  "description": "بوت واتساب مجاني بطابع Black Clover: تسجيل رسائل، كشف حذف وتعديل، ردود آلية، أوامر عربية وإنجليزية، ملصقات، ألعاب، إدارة مجموعات، وجدولة + لوحة تحكم ويب",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "dashboard": "node src/web/standalone.js",
+    "test": "node --test test/"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",

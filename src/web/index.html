@@ -3,62 +3,534 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>لوحة تحكم بوت أنمي</title>
+    <title>أستا ساما — لوحة التحكم / Asta Dashboard</title>
     <style>
+      :root {
+        --bg: #0b1020;
+        --panel: rgba(17, 24, 39, 0.9);
+        --line: #7c3aed;
+        --accent: #f0abfc;
+        --gold: #facc15;
+        --ok: #22c55e;
+        --bad: #ef4444;
+        --muted: #94a3b8;
+      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #0f172a, #1e1b4b);
+        font-family: 'Segoe UI', Tahoma, 'Noto Kufi Arabic', system-ui, sans-serif;
+        background: radial-gradient(1200px 600px at 10% -10%, #1e1b4b 0%, var(--bg) 60%);
         color: #f8fafc;
+        min-height: 100vh;
       }
-      .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-      .card { background: rgba(15,23,42,0.85); border: 1px solid #7c3aed; border-radius: 18px; padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); }
-      h1, h2 { color: #f0abfc; }
-      button, input { padding: 10px 12px; border-radius: 10px; border: none; margin: 4px; }
-      button { background: linear-gradient(90deg, #8b5cf6, #ec4899); color: white; cursor: pointer; }
-      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-      .reply-item { background: #111827; padding: 10px; border-radius: 10px; margin-top: 8px; }
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+      header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+      h1 { font-size: 22px; margin: 0; color: var(--accent); }
+      .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+      .chip { display: inline-flex; gap: 6px; align-items: center; padding: 6px 12px; border-radius: 999px; font-size: 13px; border: 1px solid #334155; background: #0f172a; }
+      .chip.ok { border-color: var(--ok); color: var(--ok); }
+      .chip.bad { border-color: var(--bad); color: var(--bad); }
+      .warn { border-color: var(--gold); color: var(--gold); }
+      .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .card { background: var(--panel); border: 1px solid #312e81; border-radius: 16px; padding: 16px; backdrop-filter: blur(6px); }
+      .card h2 { margin: 0 0 10px; font-size: 16px; color: var(--accent); }
+      .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+      .tab { border: 1px solid #312e81; background: #111827; color: #e2e8f0; padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+      .tab.active { background: linear-gradient(90deg, #8b5cf6, #ec4899); border-color: transparent; color: #fff; }
+      .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #1f2937; font-size: 14px; }
+      .stat b { color: var(--gold); }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: start; padding: 7px 6px; border-bottom: 1px solid #1f2937; vertical-align: top; word-break: break-word; }
+      th { color: var(--muted); font-weight: 600; }
+      input, select, textarea { width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid #334155; background: #0b1020; color: #f8fafc; font-family: inherit; font-size: 13px; }
+      button.act { padding: 9px 14px; border-radius: 10px; border: none; background: linear-gradient(90deg, #8b5cf6, #ec4899); color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; }
+      button.mini { padding: 4px 9px; border-radius: 8px; border: 1px solid #334155; background: #1f2937; color: #fca5a5; cursor: pointer; font-size: 12px; }
+      .row { display: grid; gap: 8px; grid-template-columns: 1fr 1fr auto; margin-bottom: 8px; }
+      .row3 { display: grid; gap: 8px; grid-template-columns: 1fr auto; margin-bottom: 8px; }
+      .panel { display: none; }
+      .panel.active { display: block; }
+      pre.qr { background: #000; color: #fff; padding: 14px; border-radius: 12px; overflow: auto; line-height: 0.95; font-size: 9px; text-align: center; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .msg-list { max-height: 460px; overflow: auto; }
+      a { color: #a78bfa; }
+      .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      @media (max-width: 640px) { .row { grid-template-columns: 1fr; } h1 { font-size: 18px; } }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="card">
-        <h1>🖤 لوحة تحكم بوت أنمي</h1>
-        <p>إدارة الردود، متابعة الرسائل، وأجواء بلاك كلوفر المميزة.</p>
-      </div>
-      <div class="grid">
-        <div class="card">
-          <h2>💬 إضافة رد جديد</h2>
-          <input id="keyword" placeholder="الكلمة" />
-          <input id="reply" placeholder="الرد" />
-          <button onclick="addReply()">حفظ الرد</button>
+    <script id="boot-config" type="application/json"><!--__CONFIG__--></script>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>⚔️ أستا ساما — لوحة التحكم <span class="muted">/ Asta Sama Dashboard</span></h1>
+          <div class="sub" id="meta">جارٍ التحميل… / Loading…</div>
         </div>
-        <div class="card">
-          <h2>✨ الردود الحالية</h2>
-          <div id="replies"></div>
+        <div class="flex">
+          <span class="chip" id="conn">…</span>
+          <span class="chip" id="maint">…</span>
+          <button class="tab" id="langBtn" type="button">EN</button>
+          <button class="tab" type="button" onclick="refreshAll()">🔄 <span data-en="Refresh" data-ar="تحديث">تحديث</span></button>
         </div>
+      </header>
+
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-p="overview">📊 <span data-en="Overview" data-ar="نظرة عامة">نظرة عامة</span></button>
+        <button class="tab" data-p="link">📱 <span data-en="WhatsApp link" data-ar="ربط واتساب">ربط واتساب</span></button>
+        <button class="tab" data-p="messages">💬 <span data-en="Messages" data-ar="الرسائل">الرسائل</span></button>
+        <button class="tab" data-p="replies">🤖 <span data-en="Auto replies" data-ar="الردود الآلية">الردود الآلية</span></button>
+        <button class="tab" data-p="reactions">✨ <span data-en="Reactions" data-ar="التفاعلات">التفاعلات</span></button>
+        <button class="tab" data-p="bans">🚫 <span data-en="Bans" data-ar="المحظورون">المحظورون</span></button>
+        <button class="tab" data-p="tasks">⏰ <span data-en="Reminders & events" data-ar="التذكيرات والجدولة">التذكيرات والجدولة</span></button>
+        <button class="tab" data-p="settings">⚙️ <span data-en="Settings" data-ar="الإعدادات">الإعدادات</span></button>
       </div>
+
+      <!-- ===================== نظرة عامة ===================== -->
+      <section class="panel active" id="p-overview">
+        <div class="grid">
+          <div class="card">
+            <h2 data-en="Bot status" data-ar="حالة البوت">حالة البوت</h2>
+            <div id="statusBox"><span class="muted">…</span></div>
+          </div>
+          <div class="card">
+            <h2 data-en="Database" data-ar="قاعدة البيانات">قاعدة البيانات</h2>
+            <div id="statsBox"><span class="muted">…</span></div>
+          </div>
+          <div class="card">
+            <h2 data-en="Chats" data-ar="آخر المحادثات">آخر المحادثات</h2>
+            <div class="msg-list"><table id="chatsTable"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== ربط واتساب ===================== -->
+      <section class="panel" id="p-link">
+        <div class="card">
+          <h2 data-en="Pair with QR code" data-ar="الربط برمز QR">الربط برمز QR</h2>
+          <p class="muted" data-en="WhatsApp → Settings → Linked devices → Link a device. The code refreshes automatically every few seconds." data-ar="افتح واتساب → الإعدادات → الأجهزة المرتبطة → ربط جهاز. يتجدد الرمز تلقائياً كل بضع ثوانٍ.">…</p>
+          <div id="qrBox"><span class="muted">…</span></div>
+          <div class="row3" style="margin-top:14px">
+            <input id="reconnectSession" value="default" placeholder="session name / اسم الجلسة" />
+            <button class="act" type="button" onclick="reconnect()" data-en="Reconnect (asks for a new QR)" data-ar="إعادة ربط (تطلب QR جديد)">إعادة ربط (تطلب QR جديد)</button>
+          </div>
+          <p class="muted" data-en="Warning: reconnecting deletes the current session — you must scan again." data-ar="⚠️ تحذير: إعادة الربط تحذف الجلسة الحالية، ويلزم مسح رمز جديد.">…</p>
+        </div>
+      </section>
+
+      <!-- ===================== الرسائل ===================== -->
+      <section class="panel" id="p-messages">
+        <div class="card">
+          <div class="row">
+            <select id="chatFilter"></select>
+            <input id="searchBox" placeholder="بحث في النص / search text" />
+            <button class="act" type="button" onclick="loadMessages()" data-en="Search" data-ar="بحث">بحث</button>
+          </div>
+          <div class="msg-list"><table id="msgTable"></table></div>
+        </div>
+      </section>
+
+      <!-- ===================== الردود الآلية ===================== -->
+      <section class="panel" id="p-replies">
+        <div class="card">
+          <h2 data-en="Add custom reply" data-ar="إضافة رد مخصص">إضافة رد مخصص</h2>
+          <div class="row">
+            <input id="repKeyword" placeholder="الكلمة / keyword" />
+            <input id="repReply" placeholder="الرد / reply" />
+            <button class="act" type="button" onclick="addReply()" data-en="Save" data-ar="حفظ">حفظ</button>
+          </div>
+          <div class="row3">
+            <select id="repScope">
+              <option value="all">all — الخاص والمجموعات</option>
+              <option value="group">group — المجموعات فقط</option>
+              <option value="private">private — الخاص فقط</option>
+            </select>
+            <span class="muted" data-en="Scope: where the reply applies" data-ar="النطاق: أين يُطبَّق الرد">…</span>
+          </div>
+          <table id="repliesTable"></table>
+        </div>
+      </section>
+
+      <!-- ===================== التفاعلات ===================== -->
+      <section class="panel" id="p-reactions">
+        <div class="card">
+          <h2 data-en="Auto emoji reactions" data-ar="تفاعلات تلقائية بالإيموجي">تفاعلات تلقائية بالإيموجي</h2>
+          <div class="row3">
+            <input id="rxKeyword" placeholder="الكلمة / keyword" />
+            <input id="rxEmoji" placeholder="الإيموجي / emoji" style="max-width:120px" />
+          </div>
+          <button class="act" type="button" onclick="addReaction()" data-en="Save reaction" data-ar="حفظ التفاعل">حفظ التفاعل</button>
+          <table id="reactionsTable" style="margin-top:12px"></table>
+        </div>
+      </section>
+
+      <!-- ===================== المحظورون ===================== -->
+      <section class="panel" id="p-bans">
+        <div class="card">
+          <h2 data-en="Ban a user from the bot" data-ar="حظر مستخدم من البوت">حظر مستخدم من البوت</h2>
+          <div class="row3">
+            <input id="banUser" placeholder="9677xxxxxxxx أو 9677...@s.whatsapp.net" />
+            <button class="act" type="button" onclick="addBan()" data-en="Ban" data-ar="حظر">حظر</button>
+          </div>
+          <table id="bansTable" style="margin-top:12px"></table>
+        </div>
+      </section>
+
+      <!-- ===================== التذكيرات والجدولة ===================== -->
+      <section class="panel" id="p-tasks">
+        <div class="grid">
+          <div class="card">
+            <h2 data-en="Pending reminders" data-ar="تذكيرات معلّقة">تذكيرات معلّقة</h2>
+            <table id="remindersTable"></table>
+          </div>
+          <div class="card">
+            <h2 data-en="Scheduled events (cron)" data-ar="جدولة المهام (cron)">جدولة المهام (cron)</h2>
+            <table id="eventsTable"></table>
+            <p class="muted" data-en="cron format: minute hour day month weekday — e.g. 0 9 * * * = every day 09:00" data-ar="صيغة cron: دقيقة ساعة يوم شهر يوم_الأسبوع — مثال: ‎0 9 * * * = يومياً 9 صباحاً">…</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== الإعدادات ===================== -->
+      <section class="panel" id="p-settings">
+        <div class="card">
+          <h2 data-en="Maintenance mode" data-ar="وضع الصيانة">وضع الصيانة</h2>
+          <p class="muted" data-en="When ON, only owners can use the bot." data-ar="عند التفعيل: المالك فقط يستطيع استخدام البوت.">…</p>
+          <div class="flex">
+            <button class="act" type="button" onclick="setMaintenance(1)" data-en="Turn ON" data-ar="تفعيل">تفعيل</button>
+            <button class="act" type="button" onclick="setMaintenance(0)" data-en="Turn OFF" data-ar="إيقاف">إيقاف</button>
+          </div>
+          <h2 style="margin-top:18px" data-en="Environment (read only)" data-ar="المتغيرات (للقراءة فقط)">المتغيرات (للقراءة فقط)</h2>
+          <div id="envBox"><span class="muted">…</span></div>
+        </div>
+      </section>
+
+      <p class="muted" style="margin-top:20px">
+        ⚔️ <span data-en="Beyond your limits, right here, right now!" data-ar="تجاوز حدودك هنا والآن!">تجاوز حدودك هنا والآن!</span> —
+        <a href="https://engyusef.alpha-code.net" target="_blank" rel="noopener">Eng.Yousef</a>
+      </p>
     </div>
+
     <script>
+      // ================== أدوات أساسية ==================
+      let BOOT = { hasToken: true, publicUrl: '' };
+      try {
+        BOOT = JSON.parse(document.getElementById('boot-config').textContent.replace(/^<!--|-->$/g, '') || '{}');
+      } catch {}
+
+      if (BOOT.hasToken === false) {
+        const bar = document.createElement('div');
+        bar.className = 'chip warn';
+        bar.style.cssText = 'display:block;margin:0 0 14px;padding:12px 16px;border-radius:12px;border:1px solid #facc15;background:#422006;color:#fde68a';
+        bar.innerHTML = '⚠️ <b>اللوحة بدون حماية!</b> أي شخص يعرف الرابط يستطيع قراءة رسائلك وتعديل إعدادات البوت. اضبط <code>DASHBOARD_TOKEN</code> في متغيرات البيئة ثم أعد النشر.';
+        document.querySelector('.wrap').prepend(bar);
+      }
+      if (BOOT.publicUrl) {
+        const hint = document.createElement('div');
+        hint.className = 'muted';
+        hint.style.marginTop = '10px';
+        hint.innerHTML = `🔗 رابط اللوحة الحالي: <code>${BOOT.publicUrl}</code>`;
+        document.querySelector('.wrap').appendChild(hint);
+      }
+
+      const params = new URLSearchParams(location.search);
+      if (params.get('token')) localStorage.setItem('astaToken', params.get('token'));
+
+      async function api(path, options = {}) {
+        const token = localStorage.getItem('astaToken') || '';
+        const url = token && !path.includes('token=') ? `${path}${path.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : path;
+        const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) toast(data.error || 'HTTP ' + res.status, true);
+        return data;
+      }
+
+      let toastTimer;
+      function toast(msg, isError) {
+        let el = document.getElementById('toast');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'toast';
+          el.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:12px;font-size:14px;z-index:99;box-shadow:0 10px 25px rgba(0,0,0,.4)';
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.background = isError ? '#7f1d1d' : '#14532d';
+        el.style.display = 'block';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (el.style.display = 'none'), 4000);
+      }
+
+      const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const fmt = (ts) => (ts ? new Date(Number(ts)).toLocaleString('ar-EG', { hour12: true }) : '—');
+      const fmtUptime = (s) => `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
+
+      // ================== التبويبات ==================
+      document.querySelectorAll('#tabs .tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+          document.getElementById('p-' + btn.dataset.p).classList.add('active');
+        });
+      });
+
+      // ================== تبديل اللغة ==================
+      let lang = localStorage.getItem('astaLang') || 'ar';
+      function applyLang() {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        document.getElementById('langBtn').textContent = lang === 'ar' ? 'EN' : 'عربي';
+        document.querySelectorAll('[data-ar][data-en]').forEach((el) => {
+          el.textContent = el.dataset[lang];
+        });
+      }
+      document.getElementById('langBtn').addEventListener('click', () => {
+        lang = lang === 'ar' ? 'en' : 'ar';
+        localStorage.setItem('astaLang', lang);
+        applyLang();
+      });
+
+      // ================== الحالات ==================
+      async function loadStatus() {
+        const s = await api('/api/status');
+        if (!s.ok) return;
+        const conn = document.getElementById('conn');
+        conn.textContent = s.connectedToWhatsApp ? '🟢 متصل بواتساب / Connected' : '🔴 غير متصل / Offline';
+        conn.className = 'chip ' + (s.connectedToWhatsApp ? 'ok' : 'bad');
+        document.getElementById('meta').textContent =
+          `v${s.version} • البادئة ${s.prefix} • ${fmtUptime(s.uptimeSeconds)} • ${s.activeSessions.length} جلسة • ${s.dashboard.url}`;
+
+        const rows = [
+          [lang === 'ar' ? 'الجلسات' : 'Sessions', (s.sessions || []).length
+            ? (s.sessions || []).map((x) => `${x.connected ? '🟢' : '🔴'} ${esc(x.name)}`).join(' ')
+            : `— (${(s.configuredSessions || []).join(', ')})`],
+          [lang === 'ar' ? 'وقت التشغيل' : 'Uptime', fmtUptime(s.uptimeSeconds)],
+          [lang === 'ar' ? 'المنفذ' : 'Port', s.dashboard.port],
+          [lang === 'ar' ? 'الرابط العام' : 'Public URL', `<a href="${esc(s.dashboard.url)}" target="_blank" rel="noopener">${esc(s.dashboard.url)}</a>`],
+          [lang === 'ar' ? 'الحماية' : 'Protection', s.dashboard.protected ? '🔒 DASHBOARD_TOKEN' : '⚠️ ' + (lang === 'ar' ? 'بدون توكن!' : 'no token!')],
+          [lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone', s.timezone],
+          [lang === 'ar' ? 'أرقام المالك' : 'Owners', esc(s.ownerNumbers.join(', '))],
+          [lang === 'ar' ? 'الرام' : 'Memory', `${s.runtime.memoryUsedMB} MB / ${s.runtime.totalMB} MB`],
+          [lang === 'ar' ? 'Node.js' : 'Node.js', s.runtime.node],
+        ]
+          .map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`)
+          .join('');
+        document.getElementById('statusBox').innerHTML = rows;
+
+        const st = s.stats || {};
+        document.getElementById('statsBox').innerHTML = Object.entries({
+          [lang === 'ar' ? 'الرسائل المحفوظة' : 'Stored messages']: st.messages,
+          [lang === 'ar' ? 'رسائل مسترجعة بعد الحذف' : 'Recovered (deleted)']: st.deletedMessages,
+          [lang === 'ar' ? 'المحادثات' : 'Chats']: st.chats,
+          [lang === 'ar' ? 'المجموعات' : 'Groups']: st.groups,
+          [lang === 'ar' ? 'الردود المخصصة' : 'Custom replies']: st.customReplies,
+          [lang === 'ar' ? 'التفاعلات' : 'Reactions']: st.customReactions,
+          [lang === 'ar' ? 'المحظورون' : 'Banned users']: st.bannedUsers,
+          [lang === 'ar' ? 'تذكيرات معلّقة' : 'Pending reminders']: st.pendingReminders,
+          [lang === 'ar' ? 'جداول نشطة' : 'Scheduled events']: st.scheduledEvents,
+        })
+          .map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v ?? 0}</b></div>`)
+          .join('');
+
+        const m = await api('/api/settings');
+        const on = m?.items?.maintenance_mode;
+        const mc = document.getElementById('maint');
+        mc.textContent = on ? '🔴 وضع الصيانة مفعّل / Maintenance ON' : '🟢 يعمل / Live';
+        mc.className = 'chip ' + (on ? 'warn' : '');
+      }
+
+      async function loadChats() {
+        const d = await api('/api/chats?limit=25');
+        const chats = d.items || d.chats || [];
+        const select = document.getElementById('chatFilter');
+        const current = select.value;
+        select.innerHTML =
+          `<option value="">${lang === 'ar' ? 'كل المحادثات' : 'All chats'}</option>` +
+          chats.map((c) => `<option value="${esc(c.chat_id)}">${esc(c.chat_id)} (${c.messages_count})</option>`).join('');
+        if (current) select.value = current;
+
+        document.getElementById('chatsTable').innerHTML =
+          `<tr><th>${lang === 'ar' ? 'المحادثة' : 'Chat'}</th><th>${lang === 'ar' ? 'عدد' : 'Msgs'}</th><th>${lang === 'ar' ? 'آخر رسالة' : 'Last'}</th><th></th></tr>` +
+          chats
+            .map(
+              (c) => `<tr><td>${esc(c.chat_id)}</td><td>${c.messages_count}</td><td>${fmt(c.last_timestamp)}</td>
+              <td><button class="mini" data-c="${esc(c.chat_id)}" onclick="openChat(this.dataset.c)">💬 ${lang === 'ar' ? 'فتح' : 'open'}</button></td></tr>`
+            )
+            .join('');
+      }
+
+      function openChat(chatId) {
+        document.querySelector('#tabs .tab[data-p="messages"]').click();
+        const sel = document.getElementById('chatFilter');
+        sel.value = chatId;
+        loadMessages();
+      }
+
+      async function loadMessages() {
+        const chat = document.getElementById('chatFilter').value;
+        const q = document.getElementById('searchBox').value;
+        const d = await api(`/api/messages?limit=60${chat ? '&chatId=' + encodeURIComponent(chat) : ''}${q ? '&q=' + encodeURIComponent(q) : ''}`);
+        const items = d.items || d.messages || [];
+        document.getElementById('msgTable').innerHTML =
+          `<tr><th>${lang === 'ar' ? 'الوقت' : 'Time'}</th><th>${lang === 'ar' ? 'المرسل' : 'Sender'}</th><th>${lang === 'ar' ? 'النص' : 'Text'}</th><th>${lang === 'ar' ? 'النوع' : 'Type'}</th></tr>` +
+          items
+            .map(
+              (m) => `<tr>
+            <td>${fmt(m.timestamp)}${m.is_deleted ? ' 🗑️' : ''}</td>
+            <td>${esc(m.sender_name || '')}<br><span class="muted">${esc(m.sender_id || '')}</span></td>
+            <td>${esc(m.text_content || '(' + (lang === 'ar' ? 'بدون نص' : 'no text') + ')')}</td>
+            <td><span class="muted">${esc((m.message_type || '').replace('Message', ''))}</span></td>
+          </tr>`
+            )
+            .join('');
+      }
+
+      // ================== الردود ==================
       async function loadReplies() {
-        const res = await fetch('/api/replies');
-        const data = await res.json();
-        const container = document.getElementById('replies');
-        container.innerHTML = data.map(item => `<div class="reply-item"><strong>${item.keyword}</strong><br>${item.reply}<br><button onclick="deleteReply(${item.id})">حذف</button></div>`).join('');
+        const d = await api('/api/replies');
+        document.getElementById('repliesTable').innerHTML =
+          `<tr><th>#</th><th>${lang === 'ar' ? 'الكلمة' : 'Keyword'}</th><th>${lang === 'ar' ? 'الرد' : 'Reply'}</th><th>${lang === 'ar' ? 'النطاق' : 'Scope'}</th><th></th></tr>` +
+          (d.items || [])
+            .map((r) => `<tr><td>${r.id}</td><td>${esc(r.keyword)}</td><td>${esc(r.reply)}</td><td>${esc(r.scope)}</td>
+            <td><button class="mini" onclick="delReply(${r.id})">✖</button></td></tr>`)
+            .join('');
       }
       async function addReply() {
-        const keyword = document.getElementById('keyword').value;
-        const reply = document.getElementById('reply').value;
-        await fetch(`/api/replies/add?keyword=${encodeURIComponent(keyword)}&reply=${encodeURIComponent(reply)}`);
-        document.getElementById('keyword').value = '';
-        document.getElementById('reply').value = '';
-        loadReplies();
+        const keyword = document.getElementById('repKeyword').value.trim();
+        const reply = document.getElementById('repReply').value.trim();
+        const scope = document.getElementById('repScope').value;
+        if (!keyword || !reply) return toast(lang === 'ar' ? 'اكتب الكلمة والرد' : 'keyword and reply are required', true);
+        const r = await api(`/api/action/replies/add?keyword=${encodeURIComponent(keyword)}&reply=${encodeURIComponent(reply)}&scope=${scope}`, { method: 'POST', body: '{}' });
+        if (r.ok) { toast(lang === 'ar' ? '✅ تم الحفظ' : '✅ saved'); document.getElementById('repKeyword').value = ''; document.getElementById('repReply').value = ''; loadReplies(); loadStatus(); }
       }
-      async function deleteReply(id) {
-        await fetch(`/api/replies/delete?id=${id}`);
-        loadReplies();
+      async function delReply(id) {
+        const r = await api('/api/action/replies/delete?id=' + id, { method: 'POST', body: '{}' });
+        if (r.ok) { toast('🗑️'); loadReplies(); loadStatus(); }
       }
-      loadReplies();
+
+      // ================== التفاعلات ==================
+      async function loadReactions() {
+        const d = await api('/api/reactions');
+        document.getElementById('reactionsTable').innerHTML =
+          `<tr><th>#</th><th>${lang === 'ar' ? 'الكلمة' : 'Keyword'}</th><th>${lang === 'ar' ? 'الإيموجي' : 'Emoji'}</th><th></th></tr>` +
+          (d.items || [])
+            .map((r) => `<tr><td>${r.id}</td><td>${esc(r.keyword)}</td><td style="font-size:20px">${esc(r.emoji)}</td>
+            <td><button class="mini" onclick="delReaction(${r.id})">✖</button></td></tr>`)
+            .join('');
+      }
+      async function addReaction() {
+        const keyword = document.getElementById('rxKeyword').value.trim();
+        const emoji = document.getElementById('rxEmoji').value.trim();
+        const r = await api(`/api/action/reactions/add?keyword=${encodeURIComponent(keyword)}&emoji=${encodeURIComponent(emoji)}`, { method: 'POST', body: '{}' });
+        if (r.ok) { toast('✅'); loadReactions(); loadStatus(); }
+      }
+      async function delReaction(id) {
+        const r = await api('/api/action/reactions/delete?id=' + id, { method: 'POST', body: '{}' });
+        if (r.ok) { toast('🗑️'); loadReactions(); }
+      }
+
+      // ================== الحظر ==================
+      async function loadBans() {
+        const d = await api('/api/bans');
+        document.getElementById('bansTable').innerHTML =
+          `<tr><th>${lang === 'ar' ? 'المستخدم' : 'User'}</th><th>${lang === 'ar' ? 'بواسطة' : 'By'}</th><th>${lang === 'ar' ? 'الوقت' : 'When'}</th><th></th></tr>` +
+          (d.items || [])
+            .map((b) => `<tr><td>${esc(b.user_id)}</td><td>${esc(b.banned_by || '')}</td><td>${fmt(b.banned_at)}</td>
+            <td><button class="mini" data-u="${esc(b.user_id)}" onclick="unban(this.dataset.u)">${lang === 'ar' ? 'رفع الحظر' : 'Unban'}</button></td></tr>`)
+            .join('');
+      }
+      async function addBan() {
+        const user = document.getElementById('banUser').value.trim();
+        const r = await api('/api/action/bans/add?user=' + encodeURIComponent(user), { method: 'POST', body: '{}' });
+        if (r.ok) { toast('🚫 ' + (lang === 'ar' ? 'تم الحظر' : 'banned')); document.getElementById('banUser').value = ''; loadBans(); loadStatus(); }
+      }
+      async function unban(user) {
+        const r = await api('/api/action/bans/remove?user=' + encodeURIComponent(user), { method: 'POST', body: '{}' });
+        if (r.ok) { toast('✅'); loadBans(); loadStatus(); }
+      }
+
+      // ================== المهام ==================
+      async function loadTasks() {
+        const rem = await api('/api/reminders');
+        document.getElementById('remindersTable').innerHTML =
+          `<tr><th>#</th><th>${lang === 'ar' ? 'النص' : 'Text'}</th><th>${lang === 'ar' ? 'الوقت' : 'At'}</th><th></th></tr>` +
+          (rem.items || [])
+            .map((r) => `<tr><td>${r.id}</td><td>${esc(r.text)}</td><td>${fmt(r.remind_at)}</td>
+            <td><button class="mini" onclick="delReminder(${r.id})">✖</button></td></tr>`)
+            .join('');
+
+        const ev = await api('/api/events');
+        document.getElementById('eventsTable').innerHTML =
+          `<tr><th>#</th><th>${lang === 'ar' ? 'المحادثة' : 'Chat'}</th><th>cron</th><th>${lang === 'ar' ? 'الرسالة' : 'Message'}</th><th></th></tr>` +
+          (ev.items || [])
+            .map((e) => `<tr><td>${e.id}</td><td class="muted">${esc(e.chat_id)}</td><td>${esc(e.cron_expression)}</td><td>${esc(e.message)}</td>
+            <td><button class="mini" onclick="delEvent(${e.id})">✖</button></td></tr>`)
+            .join('');
+      }
+      async function delReminder(id) { if ((await api('/api/action/reminders/delete?id=' + id, { method: 'POST', body: '{}' })).ok) loadTasks(); }
+      async function delEvent(id) { if ((await api('/api/action/events/delete?id=' + id, { method: 'POST', body: '{}' })).ok) loadTasks(); }
+
+      // ================== الربط والإعدادات ==================
+      async function loadQr() {
+        const d = await api('/api/qr');
+        const box = document.getElementById('qrBox');
+        if (!d.ok) return;
+        if (!d.waiting || !d.codes.length) {
+          box.innerHTML = `<div class="chip ok">✅ ${lang === 'ar' ? 'البوت متصل بالفعل — لا يوجد رمز QR معلّق' : 'Bot already connected — no pending QR'}</div>`;
+          return;
+        }
+        box.innerHTML = d.codes
+          .map(
+            (c) => `<h3 class="muted">${lang === 'ar' ? 'جلسة' : 'Session'}: ${esc(c.session)} — ${c.ageSeconds}s</h3>` +
+              (c.ascii ? `<pre class="qr">${esc(c.ascii)}</pre>` : `<p class="muted">ASCII renderer unavailable</p>`) +
+              `<p class="muted"><code>${esc(c.qr)}</code></p>`
+          )
+          .join('');
+      }
+      async function reconnect() {
+        const session = document.getElementById('reconnectSession').value.trim() || 'default';
+        if (!confirm(lang === 'ar' ? 'سيُحذف الربط الحالي وتحتاج مسح QR جديد. متابعة؟' : 'This deletes the current pairing and needs a new QR scan. Continue?')) return;
+        const r = await api(`/api/action/session/reconnect?session=${encodeURIComponent(session)}&confirm=RECONNECT`, { method: 'POST', body: '{}' });
+        toast(r.ok ? '🔄 ' + (lang === 'ar' ? 'تم — امسح الرمز الجديد' : 'done — scan the new code') : r.error, !r.ok);
+        if (r.ok) loadQr();
+      }
+      async function setMaintenance(on) {
+        const r = await api('/api/action/settings/maintenance?on=' + on, { method: 'POST', body: '{}' });
+        if (r.ok) { toast(on ? '🔧' : '✅'); loadStatus(); }
+      }
+      async function loadEnv() {
+        const s = await api('/api/status');
+        if (!s.ok) return;
+        document.getElementById('envBox').innerHTML = Object.entries({
+          COMMAND_PREFIX: s.prefix,
+          TIMEZONE: s.timezone,
+          OWNER_NUMBER: s.adminNumbers.join(', '),
+          ENABLE_AUTO_REPLY: s.features.autoReply,
+          ENABLE_ANTI_DELETE: s.features.antiDelete,
+          ENABLE_STICKER_MAKER: s.features.stickerMaker,
+          ENABLE_SCHEDULER: s.features.scheduler,
+          ENABLE_SELF_EXECUTION: s.features.selfCommandExecution,
+          ENABLE_DASHBOARD: true,
+          DASHBOARD_PORT: s.dashboard.port,
+          '💽 Volume': s.paths?.volumeMountPath || (lang === 'ar' ? 'لا يوجد — البيانات زائلة!' : 'none — data is ephemeral!'),
+          '🗄️ bot.db': s.paths?.databasePath,
+          '📂 session': s.paths?.sessionBaseDir,
+          '🖼️ media': s.paths?.mediaStoreDir,
+        })
+          .map(([k, v]) => `<div class="stat"><span>${k}</span><b>${esc(v)}</b></div>`)
+          .join('');
+      }
+
+      async function refreshAll() {
+        await Promise.all([loadStatus(), loadChats(), loadReplies(), loadReactions(), loadBans(), loadTasks(), loadMessages(), loadQr(), loadEnv()]);
+        applyLang();
+      }
+
+      applyLang();
+      refreshAll();
+      setInterval(() => {
+        loadStatus();
+        loadQr();
+      }, 5000);
     </script>
   </body>
 </html>

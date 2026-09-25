@@ -231,7 +231,7 @@ module.exports = async function gamesCommand({ sock, msg, args, chatId, senderId
   }
 
   // ===== لعبة المصير - حظ أنمي =====
-  if (commandKey === 'لعبة' || commandKey === 'game') {
+  if (commandKey === 'لعبة' || commandKey === 'game' || commandKey === 'أفكاري') {
     const text = `🎮 *ألعاب بلاك كلوفر السحرية* - اختر:\n\n✊ ${config.prefix}حجر  ✋ ${config.prefix}ورقه  ✌️ ${config.prefix}مقص\n(حجر ورقة مقص ضد البوت)\n\n🔢 ${config.prefix}تخمين\n(تخمين رقم سري بين 1 و20)\n\n❓ ${config.prefix}سؤال\n(اختبر معلوماتك في الأنمي - أجب مباشرة بدون أمر)\n\n🔀 ${config.prefix}فعالية <عدد الجولات>\n(فعالية تفكيك حروف جماعية - للمشرفين، حتى 20 جولة)`;
     await sock.sendMessage(chatId, { text }, { quoted: msg });
     return;

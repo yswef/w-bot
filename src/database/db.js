@@ -1,8 +1,11 @@
 const Database = require('better-sqlite3');
-const path = require('path');
 
-// قاعدة بيانات محلية بسيطة - تُنشأ تلقائياً أول مرة
-const db = new Database(path.join(__dirname, '..', '..', 'bot.db'));
+// قاعدة بيانات محلية بسيطة - تُنشأ تلقائياً أول مرة.
+// المسار قابل للتحكم عبر DB_PATH، ويُدعم وضعه على Volume تلقائياً في Railway
+// (انظر src/sessionPaths.js -> getDatabasePath) حتى لا تضيع الرسائل/الردود/الحظر
+// بعد كل إعادة نشر.
+const { getDatabasePath } = require('../sessionPaths');
+const db = new Database(getDatabasePath());
 
 db.pragma('journal_mode = WAL');
 
@@ -70,7 +73,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_settings (
     chat_id TEXT PRIMARY KEY,
     anti_link INTEGER DEFAULT 0,
-    welcome_enabled INTEGER DEFAULT 0
+    welcome_enabled INTEGER DEFAULT 0,
+    anti_edit INTEGER DEFAULT 1
   )
 `);
 
@@ -80,6 +84,17 @@ db.exec(`
     value TEXT NOT NULL
   )
 `);
+
+// إضافة عمود anti_edit للجداول القديمة التي أُنشئت قبل هذه الميزة
+try {
+  const cols = db.prepare(`PRAGMA table_info(chat_settings)`).all().map((c) => c.name);
+  if (!cols.includes('anti_edit')) {
+    db.exec(`ALTER TABLE chat_settings ADD COLUMN anti_edit INTEGER DEFAULT 1`);
+  }
+} catch (err) {
+  // لا شيء قاتل: نكتفي بتنبيه بسيط
+  console.warn('تعذر ترقية جدول chat_settings: ' + err.message);
+}
 
 function saveMessage(msg) {
   const stmt = db.prepare(`
@@ -161,6 +176,71 @@ function getLatestMessageForChat(chatId) {
   `).get(chatId);
 }
 
+// =============================================
+// 🧩 استعلامات تستخدمها لوحة التحكم (Dashboard)
+// =============================================
+
+// قائمة المحادثات النشطة مع عدد الرسائل وآخر وقت (أغنى من getRecentChats)
+function getRecentChatsDetailed(limit = 20) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 200);
+  return db.prepare(`
+    SELECT
+      chat_id,
+      COUNT(*) AS messages_count,
+      SUM(is_deleted) AS deleted_count,
+      MAX(timestamp) AS last_timestamp
+    FROM messages
+    GROUP BY chat_id
+    ORDER BY last_timestamp DESC
+    LIMIT ?
+  `).all(safeLimit);
+}
+
+// أحدث الرسائل مع فلترة اختيارية بمحادثة أو بنص بحث
+function getRecentMessages({ chatId = null, search = null, limit = 50 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const conditions = [];
+  const params = [];
+  if (chatId) {
+    conditions.push('chat_id = ?');
+    params.push(chatId);
+  }
+  if (search) {
+    conditions.push('text_content LIKE ?');
+    params.push(`%${search}%`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return db.prepare(`
+    SELECT id, chat_id, sender_id, sender_name, message_type, text_content, timestamp, is_deleted
+    FROM messages
+    ${where}
+    ORDER BY timestamp DESC, id DESC
+    LIMIT ${safeLimit}
+  `).all(...params);
+}
+
+// أرقام سريعة للوحة التحكم — أي جدول غير موجود يُحسب 0 بدل أن يفجر السيرفر
+function getDatabaseStats() {
+  const countOf = (sql) => {
+    try {
+      return Number(db.prepare(sql).get().count) || 0;
+    } catch {
+      return 0;
+    }
+  };
+  return {
+    messages: countOf('SELECT COUNT(*) AS count FROM messages'),
+    deletedMessages: countOf('SELECT COUNT(*) AS count FROM messages WHERE is_deleted = 1'),
+    chats: countOf('SELECT COUNT(DISTINCT chat_id) AS count FROM messages'),
+    groups: countOf("SELECT COUNT(DISTINCT chat_id) AS count FROM messages WHERE chat_id LIKE '%@g.us'"),
+    customReplies: countOf('SELECT COUNT(*) AS count FROM custom_replies'),
+    customReactions: countOf('SELECT COUNT(*) AS count FROM custom_reactions'),
+    bannedUsers: countOf('SELECT COUNT(*) AS count FROM banned_users'),
+    pendingReminders: countOf('SELECT COUNT(*) AS count FROM reminders WHERE sent = 0'),
+    scheduledEvents: countOf('SELECT COUNT(*) AS count FROM scheduled_events WHERE active = 1'),
+  };
+}
+
 function setGameState(chatId, gameType, stateData) {
   const stmt = db.prepare(`
     INSERT INTO game_states (chat_id, game_type, state_data, updated_at)
@@ -187,11 +267,12 @@ function clearGameState(chatId) {
 
 function getChatSettings(chatId) {
   const row = db.prepare(`SELECT * FROM chat_settings WHERE chat_id = ?`).get(chatId);
-  return row || { anti_link: 0, welcome_enabled: 0 };
+  // القيمة الافتراضية لـ anti_edit هي 1، لأن سلوك البوت السابق كان ينّبّه عند كل تعديل رسالة
+  return row || { anti_link: 0, welcome_enabled: 0, anti_edit: 1 };
 }
 
 function setChatSetting(chatId, key, value) {
-  const validKeys = ['anti_link', 'welcome_enabled'];
+  const validKeys = ['anti_link', 'welcome_enabled', 'anti_edit'];
   if (!validKeys.includes(key)) return;
   db.prepare(`
     INSERT INTO chat_settings (chat_id, ${key})
@@ -353,7 +434,10 @@ module.exports = {
   saveLastSeen,
   getLastSeen,
   getRecentChats,
+  getRecentChatsDetailed,
   getLatestMessageForChat,
+  getRecentMessages,
+  getDatabaseStats,
   setGameState,
   getGameState,
   clearGameState,

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "packages": {
+    "node": "20"
+  },
+  "buildAptPackages": [
+    "build-essential",
+    "python3",
+    "pkg-config",
+    "libcairo2-dev",
+    "libpango1.0-dev",
+    "libjpeg-dev",
+    "libgif-dev",
+    "librsvg2-dev",
+    "libpixman-1-0-dev"
+  ],
+  "deploy": {
+    "aptPackages": [
+      "libcairo2",
+      "libpango-1.0-0",
+      "libjpeg-turbo8",
+      "libgif7",
+      "librsvg2-2",
+      "ffmpeg"
+    ],
+    "startCommand": "node src/index.js"
+  }
+}
