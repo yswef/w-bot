@@ -83,6 +83,9 @@ const commands = {
   همسة: require('../commands/groupAdmin'),
   منشن: require('../commands/groupAdmin'),
   ضد_التعديل: require('../commands/groupAdmin'),
+  'معلومات-البوت': require('../commands/info'),
+  botinfo: require('../commands/info'),
+  'منع-التعديل': require('../commands/groupAdmin'),
 
   // --- أوامر المالك ---
   صيانة: require('../commands/owner'),
@@ -100,6 +103,12 @@ const commands = {
   اعادةربط: require('../commands/admin'),
   reconnect: require('../commands/admin'),
   بث: require('../commands/admin'),
+  // 🧩 لوحة التحكم — كانت مكتوبة داخل commands/admin.js لكنها لم تكن مسجّلة هنا،
+  // فلم يكن أحد يستطيع الوصول إليها من واتساب. الآن تعمل:
+  لوحة: require('../commands/admin'),
+  'لوحة-التحكم': require('../commands/admin'),
+  dashboard: require('../commands/admin'),
+  link: require('../commands/admin'),
 
   // --- أوامر متنوعة ---
   حب: require('../commands/extras'),

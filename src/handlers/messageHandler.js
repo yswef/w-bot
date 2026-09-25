@@ -136,9 +136,10 @@ async function handleIncomingMessages({ messages, type }, sock) {
       // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
       const senderId = msg.key.participant || msg.key.remoteJid;
 
-      // منع تعديل الرسائل
+      // منع تعديل الرسائل (يمكن إيقافه لكل مجموعة عبر: !ضد_التعديل off)
       const protocolType = msg.message?.protocolMessage?.type;
-      if (protocolType === 14) {
+      const antiEditOn = isGroupChat(chatId) ? getChatSettings(chatId).anti_edit !== 0 : true;
+      if (protocolType === 14 && antiEditOn) {
         await sock.sendMessage(chatId, { text: '⚔️ أستا لاحظ أنك قمت بتعديل رسالتك! لا يمكنك التراجع عن كلماتك في قتال السحر!' }, { quoted: msg });
 
         const originalId = msg.message.protocolMessage.key.id;
@@ -209,7 +210,7 @@ async function handleIncomingMessages({ messages, type }, sock) {
             {},
             { logger, reuploadRequest: sock.updateMediaMessage }
           );
-          const dir = path.join(__dirname, '..', '..', 'media_store');
+          const dir = require('../sessionPaths').getMediaStoreDir();
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           const ext = msgType.replace('Message', '');
           mediaPath = path.join(dir, `${msg.key.id}.${ext}`);

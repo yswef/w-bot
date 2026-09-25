@@ -2,6 +2,11 @@ node_modules/
 session/
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+tmp/
+media_store/*
+!media_store/.gitkeep
 .env
 logs/
 *.log

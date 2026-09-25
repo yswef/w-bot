@@ -9,9 +9,11 @@ function startCleanupCron() {
         logger.info('[Asta Cleanup] 🧹 حان وقت تنظيف النفايات السحرية لجعل السيرفر أسرع!');
 
         // المجلدات المستهدفة للتنظيف
+        // نفس المجلد الذي يحفظ فيه messageHandler الوسائط (قد يكون على Volume)
+        const { getMediaStoreDir } = require('../sessionPaths');
         const targetDirs = [
             path.join(__dirname, '../../tmp'),
-            path.join(__dirname, '../../media_store')
+            getMediaStoreDir()
         ];
 
         const now = Date.now();
