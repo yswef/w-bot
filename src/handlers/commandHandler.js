@@ -2,6 +2,7 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const responses = require('../utils/responses');
 const { isBanned } = require('../database/db');
+const { suggestCommand } = require('../commands/registry');
 
 // =============================================
 // 🧩 مسجل الأوامر الرئيسي - أضف ملف جديد وسجّله هنا
@@ -16,12 +17,21 @@ const commands = {
   info: require('../commands/info'),
   مساعدة: require('../commands/info'),
   help: require('../commands/info'),
+  اوامر: require('../commands/info'),
+  الاوامر: require('../commands/info'),
+  أوامر: require('../commands/info'),
+  menu: require('../commands/info'),
+  commands: require('../commands/info'),
 
   // --- أوامر الأنمي والترفيه ---
   anime: require('../commands/fun'),
   انمي: require('../commands/fun'),
   زوج: require('../commands/fun'),
   زوجة: require('../commands/fun'),
+  شخصية: require('../commands/fun'),
+  character: require('../commands/fun'),
+  شخصيات: require('../commands/fun'),
+  characters: require('../commands/fun'),
   lastseen: require('../commands/fun'),
   'آخر-مرة': require('../commands/fun'),
   آخرمرة: require('../commands/fun'),
@@ -29,7 +39,6 @@ const commands = {
   // --- ألعاب بلاك كلوفر ---
   لعبة: require('../commands/games'),
   game: require('../commands/games'),
-  أفكاري: require('../commands/games'),
   حجر: require('../commands/games'),
   ورقه: require('../commands/games'),
   مقص: require('../commands/games'),
@@ -43,6 +52,10 @@ const commands = {
   تفكيك: require('../commands/games'),
   event: require('../commands/games'),
   ايقاف_فعالية: require('../commands/games'),
+  كشف: require('../commands/games'),
+  reveal: require('../commands/games'),
+  تخطي: require('../commands/games'),
+  skip: require('../commands/games'),
 
   // --- أوامر إسلامية ---
   آية: require('../commands/islamic'),
@@ -83,6 +96,8 @@ const commands = {
   همسة: require('../commands/groupAdmin'),
   منشن: require('../commands/groupAdmin'),
   ضد_التعديل: require('../commands/groupAdmin'),
+  'ضد-التعديل': require('../commands/groupAdmin'),
+  antiedit: require('../commands/groupAdmin'),
 
   // --- أوامر المالك ---
   صيانة: require('../commands/owner'),
@@ -96,10 +111,19 @@ const commands = {
   رد: require('../commands/admin'),
   حذفرد: require('../commands/admin'),
   ترحيب: require('../commands/admin'),
+  لوحة: require('../commands/admin'),
+  dashboard: require('../commands/admin'),
+  panel: require('../commands/admin'),
   جلسات: require('../commands/admin'),
   اعادةربط: require('../commands/admin'),
   reconnect: require('../commands/admin'),
   بث: require('../commands/admin'),
+
+  // --- سجل التعديلات والحذف ---
+  تعديلات: require('../commands/history'),
+  edits: require('../commands/history'),
+  محذوفات: require('../commands/history'),
+  deleted: require('../commands/history'),
 
   // --- أوامر متنوعة ---
   حب: require('../commands/extras'),
@@ -165,9 +189,28 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
   const [cmdName, ...args] = withoutPrefix.split(/\s+/);
   const commandKey = cmdName ? cmdName : '';
 
+  // 📖 إرسال البادئة وحدها (مثل ".") يعرض قائمة الأوامر مباشرة
+  // كان المستخدم لا يجد أي طريقة لاكتشاف الأوامر، والآن أبسط محاولة تنجح.
+  if (!commandKey) {
+    await commands['مساعدة']({ sock, msg, args: [], chatId, senderId, commandKey: 'مساعدة' });
+    return;
+  }
+
   const command = commands[commandKey];
   if (!command) {
     logger.info(`أمر غير معروف: ${commandKey}`);
+    // 🤔 "هل تقصد…؟" — اقتراح أقرب أمر بدل تجاهل المستخدم بصمت
+    const suggestion = suggestCommand(commandKey);
+    const hint = suggestion
+      ? `🤔 ما فيه أمر اسمه \`${config.prefix}${commandKey}\`.\nهل تقصد \`${config.prefix}${suggestion}\`؟`
+      : `🤔 ما فيه أمر اسمه \`${config.prefix}${commandKey}\`.`;
+    try {
+      await sock.sendMessage(chatId, {
+        text: `${hint}\n\n📖 اكتب \`${config.prefix}مساعدة\` لعرض كل الأوامر.`,
+      }, { quoted: msg });
+    } catch (err) {
+      logger.warn('تعذر إرسال اقتراح الأمر: ' + err.message);
+    }
     return;
   }
 

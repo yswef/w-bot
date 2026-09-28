@@ -3,62 +3,412 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>لوحة تحكم بوت أنمي</title>
+    <title>لوحة تحكم أستا — Asta Bot Dashboard</title>
     <style>
+      :root {
+        --bg: #070b18;
+        --panel: #101a33;
+        --panel-2: #0c1428;
+        --line: #1f2b4d;
+        --accent: #8b5cf6;
+        --accent-2: #ec4899;
+        --text: #e6ecff;
+        --muted: #93a3c8;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #0f172a, #1e1b4b);
-        color: #f8fafc;
+        font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+        background: radial-gradient(1200px 600px at 80% -10%, #2a1a4d 0%, var(--bg) 60%);
+        color: var(--text);
+        min-height: 100vh;
       }
-      .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-      .card { background: rgba(15,23,42,0.85); border: 1px solid #7c3aed; border-radius: 18px; padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); }
-      h1, h2 { color: #f0abfc; }
-      button, input { padding: 10px 12px; border-radius: 10px; border: none; margin: 4px; }
-      button { background: linear-gradient(90deg, #8b5cf6, #ec4899); color: white; cursor: pointer; }
-      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-      .reply-item { background: #111827; padding: 10px; border-radius: 10px; margin-top: 8px; }
+      header {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(7, 11, 24, 0.75);
+        position: sticky;
+        top: 0;
+        backdrop-filter: blur(8px);
+        z-index: 5;
+      }
+      h1 { font-size: 19px; margin: 0; }
+      h1 small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+      .container { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; }
+      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); }
+      .pill.ok { color: var(--ok); border-color: rgba(34,197,94,.4); }
+      .pill.bad { color: var(--danger); border-color: rgba(239,68,68,.4); }
+      .pill.warn { color: var(--warn); border-color: rgba(245,158,11,.4); }
+      nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+      nav button {
+        background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+        padding: 9px 15px; border-radius: 10px; cursor: pointer; font-size: 14px; font-family: inherit;
+      }
+      nav button.active { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; font-weight: 700; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+      .card h2 { margin: 0 0 12px; font-size: 16px; color: #f0abfc; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+      .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+      .stat .n { font-size: 26px; font-weight: 800; }
+      .stat .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: right; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+      td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+      input, select, textarea {
+        background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+        padding: 10px 12px; border-radius: 10px; font-family: inherit; font-size: 14px; width: 100%;
+      }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+      .row > * { flex: 1 1 180px; }
+      button.primary {
+        background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff;
+        border: 0; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit;
+      }
+      button.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; }
+      button.ghost:hover { color: var(--danger); border-color: var(--danger); }
+      .old { color: #fca5a5; text-decoration: line-through; }
+      .new { color: #86efac; }
+      .muted { color: var(--muted); font-size: 13px; }
+      .qr { text-align: center; }
+      .qr img { background: #fff; padding: 10px; border-radius: 12px; max-width: 300px; width: 100%; }
+      .hidden { display: none; }
+      .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 14px; }
+      @media (max-width: 640px) { th:nth-child(n+4), td:nth-child(n+4) { display: none; } }
     </style>
   </head>
   <body>
+    <header>
+      <h1>🍀 لوحة تحكم أستا <small>Asta WhatsApp Bot — Control Panel</small></h1>
+      <div>
+        <span id="conn" class="pill">جارٍ التحقق…</span>
+        <span id="uptime" class="pill"></span>
+      </div>
+    </header>
+
     <div class="container">
-      <div class="card">
-        <h1>🖤 لوحة تحكم بوت أنمي</h1>
-        <p>إدارة الردود، متابعة الرسائل، وأجواء بلاك كلوفر المميزة.</p>
-      </div>
-      <div class="grid">
+      <nav>
+        <button data-tab="overview" class="active">📊 نظرة عامة</button>
+        <button data-tab="connection">🔗 الاتصال / QR</button>
+        <button data-tab="edits">✏️ الرسائل المعدَّلة</button>
+        <button data-tab="deleted">🗑️ الرسائل المحذوفة</button>
+        <button data-tab="chats">💬 المحادثات</button>
+        <button data-tab="replies">🤖 الردود التلقائية</button>
+        <button data-tab="reactions">😀 التفاعلات</button>
+        <button data-tab="bans">🚫 المحظورون</button>
+        <button data-tab="reminders">⏰ التذكيرات</button>
+      </nav>
+
+      <!-- نظرة عامة -->
+      <section id="tab-overview">
         <div class="card">
-          <h2>💬 إضافة رد جديد</h2>
-          <input id="keyword" placeholder="الكلمة" />
-          <input id="reply" placeholder="الرد" />
-          <button onclick="addReply()">حفظ الرد</button>
+          <h2>📊 الإحصائيات / Statistics</h2>
+          <div class="grid" id="stats"></div>
         </div>
         <div class="card">
-          <h2>✨ الردود الحالية</h2>
-          <div id="replies"></div>
+          <h2>✉️ إرسال رسالة / Send a message</h2>
+          <div class="row">
+            <input id="sendChat" placeholder="معرّف المحادثة مثل 9677xxxxxxx@s.whatsapp.net" />
+            <input id="sendText" placeholder="نص الرسالة" />
+          </div>
+          <button class="primary" onclick="sendMessage()">إرسال</button>
+          <span id="sendResult" class="muted"></span>
         </div>
-      </div>
+      </section>
+
+      <!-- الاتصال -->
+      <section id="tab-connection" class="hidden">
+        <div class="card">
+          <h2>🔗 حالة الجلسات / Sessions</h2>
+          <div id="sessions"></div>
+        </div>
+        <div class="card qr" id="qrCard">
+          <h2>📱 امسح الرمز للربط / Scan to link</h2>
+          <p class="muted">واتساب ← الأجهزة المرتبطة ← ربط جهاز<br />WhatsApp → Linked devices → Link a device</p>
+          <div id="qr"></div>
+        </div>
+      </section>
+
+      <!-- الرسائل المعدَّلة -->
+      <section id="tab-edits" class="hidden">
+        <div class="card">
+          <h2>✏️ آخر الرسائل المعدَّلة / Edited messages</h2>
+          <p class="muted">كل رسالة عُدِّلت، بنصها قبل وبعد التعديل.</p>
+          <div id="edits"></div>
+        </div>
+      </section>
+
+      <!-- المحذوفة -->
+      <section id="tab-deleted" class="hidden">
+        <div class="card">
+          <h2>🗑️ الرسائل المحذوفة / Deleted messages</h2>
+          <div id="deleted"></div>
+        </div>
+      </section>
+
+      <!-- المحادثات -->
+      <section id="tab-chats" class="hidden">
+        <div class="card">
+          <h2>💬 آخر المحادثات / Recent chats</h2>
+          <div id="chats"></div>
+        </div>
+      </section>
+
+      <!-- الردود -->
+      <section id="tab-replies" class="hidden">
+        <div class="card">
+          <h2>➕ إضافة رد تلقائي / Add auto-reply</h2>
+          <div class="row">
+            <input id="rKeyword" placeholder="الكلمة المفتاحية" />
+            <input id="rReply" placeholder="الرد" />
+            <select id="rScope">
+              <option value="all">كل المحادثات</option>
+              <option value="group">المجموعات فقط</option>
+              <option value="private">الخاص فقط</option>
+            </select>
+          </div>
+          <button class="primary" onclick="addReply()">حفظ الرد</button>
+        </div>
+        <div class="card"><h2>🤖 الردود الحالية</h2><div id="replies"></div></div>
+      </section>
+
+      <!-- التفاعلات -->
+      <section id="tab-reactions" class="hidden">
+        <div class="card">
+          <h2>➕ إضافة تفاعل تلقائي / Add auto-reaction</h2>
+          <div class="row">
+            <input id="xKeyword" placeholder="الكلمة المفتاحية" />
+            <input id="xEmoji" placeholder="الإيموجي مثل 🔥" />
+          </div>
+          <button class="primary" onclick="addReaction()">حفظ التفاعل</button>
+        </div>
+        <div class="card"><h2>😀 التفاعلات الحالية</h2><div id="reactions"></div></div>
+      </section>
+
+      <section id="tab-bans" class="hidden">
+        <div class="card"><h2>🚫 المستخدمون المحظورون / Banned users</h2><div id="bans"></div></div>
+      </section>
+
+      <section id="tab-reminders" class="hidden">
+        <div class="card"><h2>⏰ التذكيرات القادمة / Pending reminders</h2><div id="reminders"></div></div>
+      </section>
     </div>
+
     <script>
+      const $ = (id) => document.getElementById(id);
+
+      function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, (c) =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+        );
+      }
+      function when(ts) {
+        if (!ts) return '—';
+        try { return new Date(Number(ts)).toLocaleString('ar-EG'); } catch { return '—'; }
+      }
+      function shortJid(jid) {
+        return String(jid || '').replace('@s.whatsapp.net', '').replace('@g.us', ' (مجموعة)');
+      }
+      function empty(msg) {
+        return `<div class="empty">${esc(msg)}</div>`;
+      }
+      async function api(path, options) {
+        const res = await fetch(path, {
+          ...options,
+          headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+        });
+        if (res.status === 401) { location.href = '/'; return null; }
+        return res.json();
+      }
+
+      // ------- التبويبات -------
+      const tabs = ['overview','connection','edits','deleted','chats','replies','reactions','bans','reminders'];
+      document.querySelectorAll('nav button').forEach((btn) => {
+        btn.onclick = () => {
+          document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          tabs.forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== btn.dataset.tab));
+          refresh();
+        };
+      });
+
+      // ------- التحميل -------
+      async function loadStatus() {
+        const data = await api('/api/status');
+        if (!data) return;
+        const open = (data.sessions || []).some((s) => s.connection === 'open');
+        const conn = $('conn');
+        conn.textContent = open ? '✅ متصل بواتساب' : '⚠️ غير متصل — امسح رمز QR';
+        conn.className = 'pill ' + (open ? 'ok' : 'bad');
+        const h = Math.floor(data.uptimeSeconds / 3600);
+        const m = Math.floor((data.uptimeSeconds % 3600) / 60);
+        $('uptime').textContent = `⏱️ يعمل منذ ${h}س ${m}د · البادئة: ${data.prefix}`;
+
+        $('sessions').innerHTML = (data.sessions || []).length
+          ? `<table><tr><th>الجلسة</th><th>الحالة</th><th>الرقم</th><th>متصل منذ</th></tr>` +
+            data.sessions.map((s) => `<tr>
+              <td>${esc(s.name)}</td>
+              <td>${s.connection === 'open' ? '🟢 متصل' : s.connection === 'qr' ? '🟡 بانتظار مسح QR' : '🔴 منقطع'}</td>
+              <td class="mono">${esc(shortJid((s.user || '').split(':')[0]))}</td>
+              <td>${when(s.connectedAt)}</td></tr>`).join('') + '</table>'
+          : empty('لا توجد جلسات بعد.');
+
+        const withQr = (data.sessions || []).find((s) => s.qrImage || s.qr);
+        $('qrCard').classList.toggle('hidden', !withQr);
+        if (withQr) {
+          $('qr').innerHTML = withQr.qrImage
+            ? `<img src="${withQr.qrImage}" alt="QR" />`
+            : `<p class="muted">ثبّت مكتبة <code>qrcode</code> لعرض الرمز هنا، أو امسحه من سجل التشغيل (الطرفية).</p>`;
+        }
+      }
+
+      const statLabels = {
+        totalMessages: 'إجمالي الرسائل', messagesToday: 'رسائل آخر 24 ساعة', totalChats: 'عدد المحادثات',
+        totalUsers: 'عدد المستخدمين', editedMessages: 'رسائل معدَّلة', deletedMessages: 'رسائل محذوفة',
+        customReplies: 'ردود مخصصة', customReactions: 'تفاعلات مخصصة', bannedUsers: 'محظورون',
+        pendingReminders: 'تذكيرات معلّقة', scheduledEvents: 'مهام مجدولة',
+      };
+      async function loadStats() {
+        const s = await api('/api/stats');
+        if (!s) return;
+        $('stats').innerHTML = Object.entries(statLabels)
+          .map(([k, label]) => `<div class="stat"><div class="n">${esc(s[k] ?? 0)}</div><div class="l">${label}</div></div>`)
+          .join('');
+      }
+
+      async function loadEdits() {
+        const rows = await api('/api/edits');
+        if (!rows) return;
+        $('edits').innerHTML = rows.length
+          ? `<table><tr><th>الوقت</th><th>المُعدِّل</th><th>قبل</th><th>بعد</th><th>المحادثة</th></tr>` +
+            rows.map((r) => `<tr>
+              <td>${when(r.edited_at)}</td>
+              <td>${esc(r.sender_name || shortJid(r.sender_id))}</td>
+              <td class="old">${esc(r.old_text || '—')}</td>
+              <td class="new">${esc(r.new_text || '—')}</td>
+              <td class="mono">${esc(shortJid(r.chat_id))}</td></tr>`).join('') + '</table>'
+          : empty('لم يتم رصد أي رسالة معدَّلة بعد. عدّل رسالة في واتساب وستظهر هنا فوراً.');
+      }
+
+      async function loadDeleted() {
+        const rows = await api('/api/deleted');
+        if (!rows) return;
+        $('deleted').innerHTML = rows.length
+          ? `<table><tr><th>الوقت</th><th>المُرسِل</th><th>المحتوى</th><th>المحادثة</th></tr>` +
+            rows.map((r) => `<tr>
+              <td>${when(r.timestamp)}</td>
+              <td>${esc(r.sender_name || shortJid(r.sender_id))}</td>
+              <td>${esc(r.text_content || '[وسائط]')}</td>
+              <td class="mono">${esc(shortJid(r.chat_id))}</td></tr>`).join('') + '</table>'
+          : empty('لا توجد رسائل محذوفة مسجّلة.');
+      }
+
+      async function loadChats() {
+        const rows = await api('/api/chats');
+        if (!rows) return;
+        $('chats').innerHTML = rows.length
+          ? `<table><tr><th>المحادثة</th><th>آخر رسالة</th><th>المُرسِل</th><th>الوقت</th></tr>` +
+            rows.map((r) => `<tr>
+              <td class="mono">${r.isGroup ? '👥 ' : '👤 '}${esc(shortJid(r.chatId))}</td>
+              <td>${esc(r.lastMessage || '—')}</td>
+              <td>${esc(r.lastSender || '—')}</td>
+              <td>${when(r.lastTimestamp)}</td></tr>`).join('') + '</table>'
+          : empty('لا توجد محادثات مسجّلة بعد.');
+      }
+
       async function loadReplies() {
-        const res = await fetch('/api/replies');
-        const data = await res.json();
-        const container = document.getElementById('replies');
-        container.innerHTML = data.map(item => `<div class="reply-item"><strong>${item.keyword}</strong><br>${item.reply}<br><button onclick="deleteReply(${item.id})">حذف</button></div>`).join('');
+        const rows = await api('/api/replies');
+        if (!rows) return;
+        $('replies').innerHTML = rows.length
+          ? `<table><tr><th>الكلمة</th><th>الرد</th><th>النطاق</th><th></th></tr>` +
+            rows.map((r) => `<tr>
+              <td>${esc(r.keyword)}</td><td>${esc(r.reply)}</td><td>${esc(r.scope)}</td>
+              <td><button class="ghost" onclick="del('/api/replies?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
+          : empty('لا توجد ردود مخصصة.');
+      }
+
+      async function loadReactions() {
+        const rows = await api('/api/reactions');
+        if (!rows) return;
+        $('reactions').innerHTML = rows.length
+          ? `<table><tr><th>الكلمة</th><th>الإيموجي</th><th></th></tr>` +
+            rows.map((r) => `<tr><td>${esc(r.keyword)}</td><td>${esc(r.emoji)}</td>
+              <td><button class="ghost" onclick="del('/api/reactions?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
+          : empty('لا توجد تفاعلات مخصصة.');
+      }
+
+      async function loadBans() {
+        const rows = await api('/api/bans');
+        if (!rows) return;
+        $('bans').innerHTML = rows.length
+          ? `<table><tr><th>المستخدم</th><th>حُظر بواسطة</th><th>التاريخ</th><th></th></tr>` +
+            rows.map((r) => `<tr><td class="mono">${esc(shortJid(r.user_id))}</td>
+              <td class="mono">${esc(shortJid(r.banned_by))}</td><td>${when(r.banned_at)}</td>
+              <td><button class="ghost" onclick="del('/api/bans?id=${encodeURIComponent(r.user_id)}')">رفع الحظر</button></td></tr>`).join('') + '</table>'
+          : empty('لا يوجد محظورون. 🎉');
+      }
+
+      async function loadReminders() {
+        const rows = await api('/api/reminders');
+        if (!rows) return;
+        $('reminders').innerHTML = rows.length
+          ? `<table><tr><th>الوقت</th><th>النص</th><th>الوجهة</th><th></th></tr>` +
+            rows.map((r) => `<tr><td>${when(r.remind_at)}</td><td>${esc(r.text)}</td>
+              <td class="mono">${esc(shortJid(r.target_jid))}</td>
+              <td><button class="ghost" onclick="del('/api/reminders?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
+          : empty('لا توجد تذكيرات معلّقة.');
+      }
+
+      async function del(path) {
+        await api(path, { method: 'DELETE' });
+        refresh();
       }
       async function addReply() {
-        const keyword = document.getElementById('keyword').value;
-        const reply = document.getElementById('reply').value;
-        await fetch(`/api/replies/add?keyword=${encodeURIComponent(keyword)}&reply=${encodeURIComponent(reply)}`);
-        document.getElementById('keyword').value = '';
-        document.getElementById('reply').value = '';
+        const keyword = $('rKeyword').value.trim();
+        const reply = $('rReply').value.trim();
+        if (!keyword || !reply) return alert('أدخل الكلمة والرد');
+        await api('/api/replies', { method: 'POST', body: JSON.stringify({ keyword, reply, scope: $('rScope').value }) });
+        $('rKeyword').value = ''; $('rReply').value = '';
         loadReplies();
       }
-      async function deleteReply(id) {
-        await fetch(`/api/replies/delete?id=${id}`);
-        loadReplies();
+      async function addReaction() {
+        const keyword = $('xKeyword').value.trim();
+        const emoji = $('xEmoji').value.trim();
+        if (!keyword || !emoji) return alert('أدخل الكلمة والإيموجي');
+        await api('/api/reactions', { method: 'POST', body: JSON.stringify({ keyword, emoji }) });
+        $('xKeyword').value = ''; $('xEmoji').value = '';
+        loadReactions();
       }
-      loadReplies();
+      async function sendMessage() {
+        const chatId = $('sendChat').value.trim();
+        const text = $('sendText').value.trim();
+        if (!chatId || !text) return alert('أدخل المحادثة والنص');
+        const r = await api('/api/send', { method: 'POST', body: JSON.stringify({ chatId, text }) });
+        $('sendResult').textContent = r?.ok ? '✅ أُرسلت' : '⚠️ ' + (r?.error || 'فشل الإرسال');
+        if (r?.ok) $('sendText').value = '';
+      }
+
+      const loaders = {
+        overview: loadStats, connection: () => {}, edits: loadEdits, deleted: loadDeleted,
+        chats: loadChats, replies: loadReplies, reactions: loadReactions, bans: loadBans, reminders: loadReminders,
+      };
+      function activeTab() {
+        return document.querySelector('nav button.active').dataset.tab;
+      }
+      function refresh() {
+        loadStatus();
+        (loaders[activeTab()] || (() => {}))();
+      }
+      refresh();
+      setInterval(refresh, 10000);
     </script>
   </body>
 </html>

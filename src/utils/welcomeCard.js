@@ -1,6 +1,30 @@
-const Canvas = require('canvas');
+// ⚠️ تحسين: مكتبة canvas مكتبة أصلية (native) وتفشل تثبيتها على كثير من
+// منصات الاستضافة المجانية. كان استدعاؤها في أعلى الملف يُسقط البوت كاملاً
+// عند الإقلاع إذا لم تُثبّت. الآن نحمّلها بشكل كسول (lazy) ونتعامل مع غيابها
+// بأناقة: يعمل البوت بشكل طبيعي وترسل رسالة ترحيب نصية بدل البطاقة.
+let Canvas = null;
+let canvasChecked = false;
+
+function loadCanvas() {
+    if (!canvasChecked) {
+        canvasChecked = true;
+        try {
+            Canvas = require('canvas');
+        } catch {
+            Canvas = null;
+        }
+    }
+    return Canvas;
+}
+
+function isCanvasAvailable() {
+    return !!loadCanvas();
+}
 
 async function createWelcomeCard(userName, userAvatarUrl) {
+    const Canvas = loadCanvas();
+    if (!Canvas) throw new Error('مكتبة canvas غير مثبتة على هذا الخادم');
+
     const canvas = Canvas.createCanvas(800, 400);
     const ctx = canvas.getContext('2d');
 
@@ -51,4 +75,4 @@ async function createWelcomeCard(userName, userAvatarUrl) {
     return canvas.toBuffer('image/png');
 }
 
-module.exports = { createWelcomeCard };
+module.exports = { createWelcomeCard, isCanvasAvailable };

@@ -1,200 +1,496 @@
-# ⚔️ أستا ساما — Asta WhatsApp Bot
+<div align="center">
 
-> "حتى لو لم أكن أمتلك سحراً، سأصبح إمبراطور السحر!" 🍀
+# ⚔️ أستا — بوت واتساب | Asta WhatsApp Bot 🍀
 
-بوت واتساب مستوحى من عالم **Black Clover**، مبني على مكتبة Baileys، ومصمم ليكون رفيقك في كل مجموعة: يلعب معك، يحرسها من الروابط والمشاغبين، يرحّب بالأعضاء الجدد، يحوّل صورك لملصقات، وما يتوقف عن الاجتهاد... تماماً مثل أستا.
+**بوت واتساب عربي مستوحى من عالم Black Clover — أوامر، ألعاب، حماية مجموعات، كشف الرسائل المحذوفة *والمعدَّلة*، ولوحة تحكم ويب.**
 
-هذا المشروع بُني بمحبة، وكل سطر فيه يحمل شوية من روح "لا تستسلم أبداً" 🖤
+*An Arabic-first WhatsApp bot inspired by Black Clover — commands, games, group moderation, deleted **and edited** message detection, and a web control panel.*
 
----
+[![Repo](https://img.shields.io/badge/GitHub-yswef%2Fw--bot-181717?logo=github)](https://github.com/yswef/w-bot)
+[![Node](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Baileys](https://img.shields.io/badge/Baileys-6.x-25D366?logo=whatsapp&logoColor=white)](https://github.com/WhiskeySockets/Baileys)
 
-## 🍀 لماذا أستا؟
+🔗 **المستودع / Repository:** https://github.com/yswef/w-bot
 
-لأن أستا ما يملك سحر، لكنه ما استسلم أبداً. وهذا البوت مثله بالضبط: بسيط في فكرته، لكنه ما يتوقف عن التطور. كل أمر فيه، وكل رد، مكتوب بنفس الحماس والطاقة العالية اللي يميز شخصية أستا — عزيمة لا تنكسر، وحماس ما له حدود.
-
----
-
-## ⚠️ ملاحظة مهمة قبل البدء
-
-- البوت يستخدم مكتبة Baileys غير الرسمية للاتصال بواتساب، وهذا يخالف شروط استخدام واتساب وقد يعرّض الرقم للحظر.
-- **استخدم رقماً تجريبياً وليس رقمك الأساسي.**
-- هذا المشروع لأغراض شخصية وتعليمية، لا تستخدمه للسبام أو البث التجاري الجماعي.
+</div>
 
 ---
 
-## ✨ كل مميزات أستا بالتفصيل
+## 📑 المحتويات | Table of contents
 
-### 🌸 الأنمي والترفيه
-| الأمر | الوصف |
+- [نظرة سريعة / Overview](#-نظرة-سريعة--overview)
+- [تحذير مهم / Important warning](#️-تحذير-مهم--important-warning)
+- [التشغيل في 5 دقائق / Quick start](#-التشغيل-في-5-دقائق--quick-start-in-5-minutes)
+- [لوحة التحكم / Control panel](#️-لوحة-التحكم--control-panel)
+- [كيف أعرض قائمة الأوامر؟ / How to see the commands](#-كيف-أعرض-قائمة-الأوامر--how-to-see-the-command-list)
+- [كل الأوامر / All commands](#-كل-الأوامر--all-commands)
+- [الميزات التلقائية / Automatic features](#-الميزات-التلقائية--automatic-features)
+- [كشف الرسائل المعدَّلة / Edited message detection](#️-كشف-الرسائل-المعدَّلة--edited-message-detection)
+- [الإعدادات / Configuration](#-الإعدادات--configuration)
+- [النشر / Deployment](#-النشر--deployment)
+- [بنية المشروع / Project structure](#-بنية-المشروع--project-structure)
+- [استكشاف الأخطاء / Troubleshooting](#-استكشاف-الأخطاء--troubleshooting)
+- [المطوّر / Developer](#-المطوّر--developer)
+
+---
+
+## 🍀 نظرة سريعة | Overview
+
+**بالعربية:** أستا بوت واتساب مبني على مكتبة [Baileys](https://github.com/WhiskeySockets/Baileys) وقاعدة بيانات SQLite محلية. يعمل كرفيق لمجموعاتك: يلعب معك، يحرس المجموعة من الروابط والمشاغبين، يرحّب بالأعضاء الجدد، يحوّل صورك لملصقات، يكشف الرسائل المحذوفة **والمعدَّلة**، ويعطيك لوحة تحكم ويب لمتابعة كل شيء.
+
+**In English:** Asta is a WhatsApp bot built on [Baileys](https://github.com/WhiskeySockets/Baileys) with a local SQLite database. It plays games with your group, blocks links and troublemakers, welcomes new members, turns your photos into stickers, reveals deleted **and edited** messages, and ships with a web dashboard to watch it all.
+
+| | |
 |---|---|
-| `.انمي` | يرسل شخصية أنمي عشوائية مع صورتها ومقولة (عبر Jikan API) |
-| `.زوجني` | شريك حياة عشوائي (أي شخصية) |
-| `.زوج` | شريك حياة سحري — شخصية **ذكر** فقط |
-| `.زوجة` | شريكة حياة سحرية — شخصية **أنثى** فقط |
-| `.اقتباس` | مقولة فخمة من عالم الأنمي |
-| `.انميات` | قائمة أنميات الموسم الحالي |
-| `.بحث-انمي <اسم>` | تفاصيل عن أي أنمي تريده |
-| `.نشرة-انمي` | جدولة نشرة أنمي دورية تلقائية للمجموعة |
-
-### 🎮 الألعاب
-| الأمر | الوصف |
-|---|---|
-| `.حجر` / `.ورقه` / `.مقص` | تحدَّ البوت بلعبة حجر ورقة مقص |
-| `.تخمين` ثم `.اخمن <رقم>` | خمّن الرقم السري بين 1 و20 خلال 5 محاولات |
-| `.سؤال` | سؤال معلومات عن بلاك كلوفر — **أجب مباشرة في الدردشة بدون أي أمر!** |
-| `.فعالية <عدد الجولات>` | 🔥 فعالية جماعية لتفكيك الحروف يديرها المشرف (حتى 20 جولة)، يرسل البوت اسم شخصية مبعثر الحروف، وأول من يكتب الاسم الصحيح **مباشرة في الدردشة** يفوز بنقطة. في النهاية يظهر لوحة الصدارة 🏆 |
-| `.ايقاف_فعالية` | إيقاف الفعالية الجارية وعرض النتائج فوراً |
-
-### 🕌 أوامر إسلامية
-`.آية` لآية قرآنية عشوائية، `.ذكر` لذكر يومي، بالإضافة لجدولة تلقائية للأذكار والآيات في المجموعات.
-
-### 🛡️ إدارة المجموعات (للمشرفين والمالك)
-| الأمر | الوصف |
-|---|---|
-| `.طرد` / `.ترقية` / `.تخفيض` | إدارة الأعضاء (الترقية والتخفيض للمالك فقط) |
-| `.قفل` / `.فتح` | قفل أو فتح المجموعة للإرسال |
-| `.الكل <رسالة>` | منشن ظاهر لجميع الأعضاء |
-| `.تنبيه <رسالة>` | 🤫 منشن **مخفي** لجميع الأعضاء — يصلهم التنبيه بدون عرض قائمة @ الطويلة |
-| `.همسة <رسالة>` | منشن مخفي مرفق برسالة لعضو واحد (رد على رسالته) |
-| `.منع-الروابط` | يحذف أي رابط يُرسل في المجموعة تلقائياً |
-| `.ترحيب` | تفعيل/إيقاف بطاقة ترحيب مصممة بـ Canvas لكل عضو جديد |
-| `.حظر @عضو` / `.رفع-حظر @عضو` | 🚫 منع عضو معيّن من استخدام أي أمر من أوامر البوت نهائياً (للمالك) |
-| `.المحظورين` | عرض قائمة كل المحظورين حالياً |
-| `.جدولة قفل/فتح/اذكار` | جدولة مهام تلقائية للمجموعة |
-
-> 💡 إذا حاول أستا تنفيذ أمر إداري (مثل الطرد أو القفل) ولم يكن مشرفاً في المجموعة، سيرسل تلقائياً رسالة يطلب فيها ترقيته إلى مشرف بدلاً من أن يفشل بصمت.
-
-### 🎨 الملصقات
-| الأمر | الوصف |
-|---|---|
-| `.ملصق` | حوّل أي صورة أو فيديو/GIF قصير لملصق — إما بالرد عليه، أو بإرسال الوسائط مباشرة مع كتابة `.ملصق` كتعليق (caption) بدون الحاجة لعمل رد! |
-| `.سرقة` | رد على أي ملصق موجود وسيسرقه أستا، مغيّراً حقوقه (اسم الباك والمؤلف) لحقوقه الخاصة، ثم يعيد إرساله |
-
-### 👑 صلاحيات المالك
-- المالكون المعتمدون حالياً: `967784773314` و `967784609423` (بالإضافة لأي رقم تضيفه في `.env`).
-- **تنفيذ ذاتي**: إذا كتبت أمراً من هاتفك الأساسي المربوط بجلسة البوت مباشرة، سينفذه أستا تلقائياً كأنك أرسلته له — بدون أي إعداد إضافي.
-- `.صيانة` — تفعيل/إيقاف وضع الصيانة (لا يستجيب البوت لأحد إلا المالك).
-- `.احصائيات` — إحصائيات حية عن استهلاك الرام وعدد المجموعات والرسائل.
-- `.بث <رسالة>` — بث رسالة جماعية.
-
-### 🌐 أدوات متنوعة
-`.طقس <مدينة>`, `.ويكي <بحث>`, `.سعر <مبلغ> <من> <إلى>` (تحويل عملات حي), `.ترجم <لغة> <نص>`, `.استطلاع`, `.حب @شخص1 @شخص2`, `.نكتة`, `.سلسلة` (لعبة سلسلة الحروف), `.تواصل` (التواصل مع المطوّر).
-
-### 🤖 سلوك تلقائي ذكي
-- **تفاعل تلقائي 🤖** على أي أمر يُنفَّذ بنجاح.
-- **استرجاع الرسائل المحذوفة** — إذا حذف أحدهم رسالته، يعيد أستا إرسالها.
-- **كشف تعديل الرسائل** — إذا عدّل أحدهم رسالته، ينبّه أستا الجميع ويكشف نصها الأصلي: "أستا لا ينسى ولا يتراجع!"
-- **بطاقة ترحيب مرسومة بالكامل (Canvas)** لكل عضو جديد ينضم للمجموعة.
-- **ردود آلية وتفاعلات مخصصة** قابلة للتعديل من ملف `src/responses.json` مباشرة، بدون الحاجة للمس الكود.
+| 🧩 **الأوامر / Commands** | 71 أمر موزّعة على 8 فئات |
+| 🌸 **شخصيات الأنمي / Characters** | 145 شخصية بصور ومقولات (33 من بلاك كلوفر) |
+| 🎮 **أسئلة الألعاب / Trivia** | 45 سؤال + 164 اسم لفعالية تفكيك الحروف |
+| ✏️ **كشف التعديل / Anti-edit** | يعرض نص الرسالة *قبل وبعد* التعديل |
+| 🗑️ **كشف الحذف / Anti-delete** | يعيد إرسال الرسائل والوسائط المحذوفة |
+| 🖥️ **لوحة التحكم / Dashboard** | محمية برمز وصول، مع رمز QR للربط |
 
 ---
 
-## 👨‍💻 عن المطوّر
+## ⚠️ تحذير مهم | Important warning
 
-هذا البوت من تصميم وتطوير **يوسف (Eng.Yousef)**، الذي أعطى أستا شخصيته وحماسه.
-
-- 🌐 الموقع الرسمي: **[engyusef.alpha-code.net](https://engyusef.alpha-code.net)**
-- 📱 للتواصل المباشر: `wa.me/967784609423`
-
-إذا واجهتك مشكلة، أو عندك فكرة لميزة جديدة، تواصل معه مباشرة — أو استخدم أمر `.تواصل` داخل البوت نفسه.
+> **بالعربية:** البوت يستخدم مكتبة Baileys غير الرسمية، وهذا يخالف شروط استخدام واتساب وقد يعرّض الرقم للحظر. **استخدم رقماً تجريبياً وليس رقمك الأساسي.** المشروع لأغراض شخصية وتعليمية، لا تستخدمه للسبام أو البث التجاري الجماعي.
+>
+> **In English:** This bot uses the unofficial Baileys library, which violates WhatsApp's Terms of Service and may get the number banned. **Use a spare number, not your main one.** This project is for personal and educational use — do not use it for spam or mass commercial broadcasting.
 
 ---
 
-## 🚀 التشغيل
+## 🚀 التشغيل في 5 دقائق | Quick start in 5 minutes
 
-### 1) المتطلبات
-- **Node.js** إصدار 18 أو أحدث
-- Git
+### المتطلبات | Requirements
+- **Node.js 20+** ([تحميل / download](https://nodejs.org))
+- رقم واتساب تجريبي | A spare WhatsApp number
 
-### 2) التثبيت
+### الخطوات | Steps
+
 ```bash
-git clone <رابط مستودعك>
-cd whatsapp-bot
+# 1) استنساخ المستودع | Clone the repository
+git clone https://github.com/yswef/w-bot.git
+cd w-bot
+
+# 2) تثبيت الحزم | Install dependencies
 npm install
-cp .env.example .env
-```
-عدّل ملف `.env` واضبط المتغيرات (مثل `OWNER_NUMBER`، `EXTRA_OWNER_NUMBERS`، و`COMMAND_PREFIX`).
 
-### 3) التشغيل
-```bash
+# 3) إنشاء ملف الإعدادات | Create your config file
+cp .env.example .env
+#    ثم عدّل OWNER_NUMBER برقمك | then set OWNER_NUMBER to your number
+
+# 4) التشغيل | Run
 npm start
 ```
-- امسح رمز QR الظاهر في الطرفية عبر **الأجهزة المرتبطة** في واتساب.
-- بعد الاتصال، تُحفظ الجلسة محلياً (لن تحتاج لمسح الرمز في كل مرة).
 
-### 4) النشر على Railway
-تم تضمين ملف `nixpacks.toml` يجهّز تلقائياً المكتبات التي تحتاجها `canvas` (لبطاقات الترحيب) عند البناء على Railway، ويحل مشكلة البطء أو الفشل عند تحميل الصور. لا حاجة لأي إعداد إضافي — فقط ادفع المشروع واربطه بـ Railway وسيعمل.
+### 5) الربط بواتساب | Link WhatsApp
 
-### 5) تحديث النشر
-استخدم سكربت `update.sh` المرفق لسحب آخر التحديثات على السيرفر:
+بعد التشغيل سيظهر في الطرفية شيء مثل هذا:
+
+```
+──────────────────────────────────────────────────────────
+🖥️  لوحة تحكم أستا جاهزة / Asta dashboard is ready
+🔗  الرابط المحلي / Local URL: http://localhost:3000/?token=a1b2c3d4e5f6
+🔑  رمز الوصول / Access token: a1b2c3d4e5f6
+──────────────────────────────────────────────────────────
+```
+
+ثم رمز QR في الطرفية. اختر أي طريقة للربط:
+
+| الطريقة | الخطوات |
+|---|---|
+| 📱 **من الطرفية** | افتح واتساب ← الأجهزة المرتبطة ← ربط جهاز ← امسح رمز QR الظاهر في الطرفية |
+| 🖥️ **من المتصفح** | افتح الرابط المطبوع أعلاه ← تبويب **🔗 الاتصال / QR** ← امسح الرمز |
+
+عند نجاح الربط سترى: `✅ Connected to WhatsApp successfully.`
+
+**In English:** After `npm start`, the terminal prints the dashboard URL (with its access token) and a QR code. Open WhatsApp → *Linked devices* → *Link a device*, then scan the QR either from the terminal or from the dashboard's **Connection / QR** tab.
+
+---
+
+## 🖥️ لوحة التحكم | Control panel
+
+> ❓ **"شغّلت البوت وما عرفت كيف أوصل للوحة التحكم"** — هذا القسم يحلّ المشكلة.
+> في النسخة السابقة كانت اللوحة **معطّلة بالكامل في الكود**؛ الآن تعمل تلقائياً وتطبع رابطها عند كل تشغيل.
+
+### كيف أفتحها؟ | How do I open it?
+
+هناك ثلاث طرق:
+
+1. **من سجل التشغيل:** انسخ الرابط الكامل المطبوع عند بدء التشغيل (يتضمن رمز الوصول).
+2. **من واتساب:** أرسل الأمر `.لوحة` من رقم المالك — سيردّ البوت بالرابط ورمز الوصول.
+3. **يدوياً:** افتح `http://localhost:3000` وأدخل رمز الوصول في صفحة الدخول.
+
+> 🔑 **رمز الوصول:** يُولَّد عشوائياً عند كل تشغيل. لتثبيته ضع `DASHBOARD_TOKEN=رمزك_السري` في ملف `.env`.
+> 🔑 **Access token:** random on every run. Set `DASHBOARD_TOKEN=your_secret` in `.env` to keep it fixed.
+
+### ماذا تعرض اللوحة؟ | What's inside?
+
+| التبويب / Tab | المحتوى / Contents |
+|---|---|
+| 📊 نظرة عامة / Overview | 11 إحصائية حيّة + إرسال رسالة مباشرة |
+| 🔗 الاتصال / Connection | حالة كل جلسة + رمز QR للربط من المتصفح |
+| ✏️ الرسائل المعدَّلة / Edited | كل رسالة عُدِّلت بنصها **قبل وبعد** |
+| 🗑️ الرسائل المحذوفة / Deleted | أرشيف الرسائل المحذوفة |
+| 💬 المحادثات / Chats | آخر المحادثات وآخر رسالة في كل منها |
+| 🤖 الردود التلقائية / Auto-replies | إضافة وحذف الردود بدون كود |
+| 😀 التفاعلات / Reactions | تفاعلات إيموجي تلقائية على كلمات معينة |
+| 🚫 المحظورون / Bans | قائمة الحظر مع إمكانية الرفع |
+| ⏰ التذكيرات / Reminders | التذكيرات المعلّقة |
+
+اللوحة محمية برمز وصول، وتوفّر نقطة `/health` مفتوحة لفحص الصحة على منصات الاستضافة.
+
+---
+
+## 📖 كيف أعرض قائمة الأوامر؟ | How to see the command list
+
+> ❓ **"ما عرفت كيف أخلّيه يرسل قوائم الأوامر"** — أضفنا أربع طرق، أي واحدة تكفي:
+
+| الطريقة | مثال |
+|---|---|
+| 1️⃣ أمر المساعدة | `.مساعدة` |
+| 2️⃣ البادئة وحدها | أرسل `.` فقط |
+| 3️⃣ كلمة عادية بدون بادئة | اكتب `اوامر` أو `menu` |
+| 4️⃣ خطأ إملائي | اكتب `.انمى` فيقترح عليك `.انمي` تلقائياً |
+
+ثم تصفّح الفئات:
+
+```
+.مساعدة           ← القائمة الرئيسية (الفئات)
+.مساعدة انمي      ← أوامر الأنمي فقط
+.مساعدة العاب     ← الألعاب فقط
+.مساعدة مجموعات   ← إدارة المجموعات
+.مساعدة الكل      ← كل الأوامر دفعة واحدة
+```
+
+**In English:** send `.مساعدة` (or just `.`, or the plain word `menu`) to get the categorised command menu; `.مساعدة all` prints everything. Typos get a "did you mean…?" suggestion.
+
+---
+
+## 📜 كل الأوامر | All commands
+
+> 📌 البادئة الافتراضية هي النقطة `.` ويمكن تغييرها من `COMMAND_PREFIX` في `.env`.
+> 🛡️ = يحتاج صلاحية مشرف مجموعة · 👑 = يحتاج صلاحية مالك البوت
+
+### 🌸 الأنمي والترفيه — Anime & Fun
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.انمي` <br><sub>.anime</sub> | شخصية أنمي عشوائية مع صورتها ومقولتها | Random anime character with image & quote | — |
+| `.زوج` | شريك حياة سحري (شخصية ذكر) | Random male character as your partner | — |
+| `.زوجة` | شريكة حياة سحرية (شخصية أنثى) | Random female character as your partner | — |
+| `.شخصية <اسم>` <br><sub>.character</sub> | ابحث عن شخصية معيّنة بالاسم | Search a character by name | — |
+| `.شخصيات` <br><sub>.characters</sub> | عدد الشخصيات المتاحة وتوزيعها | Roster size and breakdown | — |
+| `.اقتباس` <br><sub>.quote</sub> | مقولة فخمة من عالم الأنمي | Random anime quote | — |
+| `.نكتة` <br><sub>.joke</sub> | نكتة عشوائية | Random joke | — |
+| `.حب @شخص1 @شخص2` <br><sub>.love</sub> | نسبة التوافق بين شخصين | Love compatibility percentage | — |
+| `.انميات` <br><sub>.موسم</sub> | أنميات الموسم الحالي | Current season anime list | — |
+| `.بحث-انمي <اسم>` <br><sub>.searchanime</sub> | تفاصيل أي أنمي | Search anime details | — |
+| `.نشرة-انمي` | جدولة نشرة أنمي دورية للمجموعة | Schedule a recurring anime newsletter | 🛡️ مشرف / Admin |
+| `.إيقاف-نشرة` | إيقاف نشرة الأنمي | Stop the anime newsletter | 🛡️ مشرف / Admin |
+| `.lastseen` <br><sub>.آخرمرة · .آخر-مرة</sub> | آخر ظهور لمستخدم في المحادثة | Last seen time for a user | — |
+
+### 🎮 الألعاب — Games
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.لعبة` <br><sub>.game</sub> | قائمة الألعاب المتاحة | List available games | — |
+| `.حجر` <br><sub>.ورقه · .مقص</sub> | حجر ورقة مقص ضد البوت | Rock paper scissors vs the bot | — |
+| `.تخمين` | ابدأ لعبة تخمين رقم بين 1 و20 | Start the number guessing game | — |
+| `.اخمن <رقم>` | أرسل تخمينك للرقم السري | Submit your guess | — |
+| `.سؤال` <br><sub>.trivia</sub> | سؤال معلومات أنمي — أجب مباشرة بالدردشة | Anime trivia — answer directly in chat | — |
+| `.كشف` <br><sub>.reveal</sub> | اكشف إجابة السؤال النشط | Reveal the active trivia answer | — |
+| `.جواب <إجابتك>` <br><sub>.answer</sub> | إرسال إجابة للسؤال أو الفعالية النشطة | Submit an answer to the active question/event | — |
+| `.فعالية <عدد الجولات>` <br><sub>.تفكيك · .event</sub> | فعالية تفكيك حروف جماعية (حتى 20 جولة) | Group word-scramble event (up to 20 rounds) | 🛡️ مشرف / Admin |
+| `.تخطي` <br><sub>.skip</sub> | تخطي الجولة الحالية في الفعالية | Skip the current event round | 🛡️ مشرف / Admin |
+| `.ايقاف_فعالية` | إنهاء الفعالية وعرض لوحة الصدارة | End the event and show the scoreboard | 🛡️ مشرف / Admin |
+| `.سلسلة` | لعبة سلسلة الحروف | Word chain game | — |
+
+### 🕌 إسلامية — Islamic
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.آية` <br><sub>.aaya</sub> | آية قرآنية كريمة عشوائية | Random Quran verse | — |
+| `.ذكر` <br><sub>.thikr</sub> | ذكر من الأذكار اليومية | Random daily remembrance | — |
+| `.جدول-آية <وقت>` | جدولة آية يومية للمجموعة | Schedule a daily verse | 🛡️ مشرف / Admin |
+| `.جدول-ذكر <وقت>` | جدولة ذكر يومي للمجموعة | Schedule a daily remembrance | 🛡️ مشرف / Admin |
+| `.إيقاف-جدول` | إيقاف الجداول الإسلامية | Stop Islamic schedules | 🛡️ مشرف / Admin |
+
+### 🧰 أدوات مفيدة — Utilities
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.ping` | فحص سرعة استجابة البوت | Check bot latency | — |
+| `.مساعدة [الفئة]` <br><sub>.help · .info · .اوامر · .الاوامر · .أوامر · .menu · .commands</sub> | عرض قائمة الأوامر (أو فئة محددة) | Show the command list (or one category) | — |
+| `.سعر <مبلغ> <من> <إلى>` <br><sub>.currency</sub> | محوّل عملات بسعر حي | Live currency converter | — |
+| `.ترجم <لغة> <نص>` <br><sub>.translate</sub> | ترجمة نص أو رسالة مقتبسة | Translate text or a quoted message | — |
+| `.طقس <مدينة>` <br><sub>.weather</sub> | حالة الطقس لأي مدينة | Weather for any city | — |
+| `.ويكي <كلمة>` <br><sub>.wiki</sub> | ملخّص من ويكيبيديا | Wikipedia summary | — |
+| `.استطلاع <سؤال>|<خيار>|<خيار>` <br><sub>.poll</sub> | إنشاء استطلاع واتساب أصلي | Create a native WhatsApp poll | — |
+| `.تذكير <وقت> <نص>` <br><sub>.reminder · .remind</sub> | ذكّرني برسالة بعد مدة محددة | Set a reminder | — |
+| `.ايدي` <br><sub>.myid · .whoami · .معرفي</sub> | عرض معرّفك وصلاحياتك | Show your JID and permissions | — |
+| `.تواصل` <br><sub>.المطور · .developer · .contact</sub> | التواصل مع مطوّر البوت | Contact the developer | — |
+
+### 🖼️ الوسائط والملصقات — Media & Stickers
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.ملصق` <br><sub>.sticker</sub> | تحويل صورة/فيديو إلى ملصق | Convert an image/video to a sticker | — |
+| `.سرقة` <br><sub>.steal</sub> | سرقة ملصق موجود بردّك عليه | Steal an existing sticker | — |
+
+### 🛡️ إدارة المجموعات — Group Admin
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.طرد @عضو` <br><sub>.kick</sub> | طرد عضو من المجموعة | Remove a member | 🛡️ مشرف / Admin |
+| `.ترقية @عضو` <br><sub>.promote</sub> | ترقية عضو إلى مشرف | Promote a member to admin | 🛡️ مشرف / Admin |
+| `.تخفيض @مشرف` <br><sub>.demote</sub> | تخفيض مشرف إلى عضو | Demote an admin | 🛡️ مشرف / Admin |
+| `.قفل` <br><sub>.lock</sub> | قفل المجموعة (المشرفون فقط يرسلون) | Lock the group | 🛡️ مشرف / Admin |
+| `.فتح` <br><sub>.unlock</sub> | فتح المجموعة للجميع | Unlock the group | 🛡️ مشرف / Admin |
+| `.الكل <رسالة>` <br><sub>.all · .احية</sub> | منشن ظاهر لجميع الأعضاء | Mention everyone (visible) | 🛡️ مشرف / Admin |
+| `.تنبيه <رسالة>` | منشن مخفي للجميع بدون قائمة @ | Hidden mention for everyone | 🛡️ مشرف / Admin |
+| `.همسة <رسالة>` <br><sub>.منشن</sub> | منشن مخفي لعضو واحد (بالرد عليه) | Hidden mention for one member | 🛡️ مشرف / Admin |
+| `.منع-الروابط [ايقاف]` <br><sub>.antilink</sub> | حذف أي رابط يُنشر في المجموعة | Auto-delete links | 🛡️ مشرف / Admin |
+| `.ضد_التعديل [ايقاف|حالة]` <br><sub>.antiedit · .ضد-التعديل</sub> | كشف الرسائل المعدَّلة وإظهار نصها قبل وبعد | Reveal edited messages (before & after) | 🛡️ مشرف / Admin |
+| `.ترحيب [رسالة|ايقاف]` <br><sub>.welcome</sub> | بطاقة ترحيب تلقائية للأعضاء الجدد | Auto welcome card for new members | 🛡️ مشرف / Admin |
+| `.معلومات-مجموعة` <br><sub>.groupinfo</sub> | تفاصيل وإحصائيات المجموعة | Group details and stats | 🛡️ مشرف / Admin |
+| `.جدولة <قفل|فتح|اذكار>` | جدولة مهام تلقائية للمجموعة | Schedule automatic group tasks | 🛡️ مشرف / Admin |
+| `.تفعيل-بوت` | تفعيل البوت في هذه المحادثة | Enable the bot in this chat | 🛡️ مشرف / Admin |
+| `.إيقاف-بوت` | إيقاف البوت في هذه المحادثة | Disable the bot in this chat | 🛡️ مشرف / Admin |
+
+### 🕵️ المراقبة والسجلات — Monitoring & Logs
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.تعديلات [عدد]` <br><sub>.edits</sub> | آخر الرسائل المعدَّلة (أو رُدَّ على رسالة لسجلها) | Recent edited messages (or reply to one) | — |
+| `.محذوفات [عدد]` <br><sub>.deleted</sub> | آخر الرسائل المحذوفة في المحادثة | Recent deleted messages | — |
+
+### 👑 أوامر المالك — Owner
+
+| الأمر / Command | الوصف بالعربية | Description | الصلاحية / Role |
+|---|---|---|---|
+| `.لوحة` <br><sub>.dashboard · .panel</sub> | رابط لوحة التحكم مع رمز الوصول | Dashboard link with access token | 👑 مالك / Owner |
+| `.احصائيات` <br><sub>.stats</sub> | إحصائيات البوت الكاملة | Full bot statistics | 👑 مالك / Owner |
+| `.صيانة [on|off]` <br><sub>.maintenance</sub> | تفعيل/إيقاف وضع الصيانة | Toggle maintenance mode | 👑 مالك / Owner |
+| `.رد <كلمة> <رد>` | إضافة رد تلقائي مخصص | Add a custom auto-reply | 👑 مالك / Owner |
+| `.حذفرد <id>` | حذف رد تلقائي | Delete a custom auto-reply | 👑 مالك / Owner |
+| `.تفاعل <كلمة> <إيموجي>` | إضافة تفاعل تلقائي على كلمة | Add an auto-reaction keyword | 👑 مالك / Owner |
+| `.حذفتفاعل <id>` | حذف تفاعل تلقائي | Delete an auto-reaction | 👑 مالك / Owner |
+| `.حظر @عضو` <br><sub>.ban</sub> | منع عضو من استخدام البوت | Ban a user from the bot | 👑 مالك / Owner |
+| `.رفع-حظر @عضو` <br><sub>.unban</sub> | رفع الحظر عن عضو | Unban a user | 👑 مالك / Owner |
+| `.المحظورين` <br><sub>.banlist</sub> | قائمة المحظورين | List banned users | 👑 مالك / Owner |
+| `.بث <رسالة>` | إرسال رسالة لكل المجموعات | Broadcast to all groups | 👑 مالك / Owner |
+| `.جلسات` | حالة جلسات الاتصال | Session connection status | 👑 مالك / Owner |
+| `.اعادةربط [اسم الجلسة]` <br><sub>.reconnect</sub> | إعادة ربط جلسة واتساب | Re-link a WhatsApp session | 👑 مالك / Owner |
+
+---
+
+## ✅ الميزات التلقائية | Automatic features
+
+تعمل هذه الميزات بدون أي أمر:
+
+| الميزة / Feature | الوصف بالعربية | Description |
+|---|---|---|
+| ✏️ كشف التعديل | يعرض نص الرسالة قبل وبعد التعديل ويسجّله | Shows message text before & after an edit |
+| 🗑️ كشف الحذف | يعيد إرسال الرسائل والوسائط المحذوفة | Re-sends deleted messages and media |
+| 🤖 ردود آلية | ردود على كلمات مفتاحية (في الخاص والمجموعات) | Keyword auto-replies in DMs and groups |
+| 😀 تفاعلات آلية | إيموجي تلقائي على كلمات محددة | Automatic emoji reactions on keywords |
+| 🎉 ترحيب تلقائي | بطاقة ترحيب مصمّمة للأعضاء الجدد | Designed welcome card for new members |
+| 🛡️ منع الروابط | حذف أي رابط يُنشر في المجموعة | Auto-delete links posted in the group |
+| 🚫 نظام الحظر | منع مستخدمين محددين من البوت | Ban specific users from using the bot |
+| 🎮 التقاط الإجابات | الإجابة على الأسئلة والفعاليات مباشرة بالدردشة | Answer trivia/events directly in chat |
+| ⏰ المهام المجدولة | آيات وأذكار ونشرات أنمي وتذكيرات | Scheduled verses, athkar, anime news, reminders |
+| 🖼️ تخزين مسبق للصور | تحميل صور الشخصيات مسبقاً عند الإقلاع | Character images pre-fetched at startup |
+| 📱 تنفيذ ذاتي | تنفيذ الأوامر المرسلة من رقم البوت نفسه | Commands sent from the bot's own number run too |
+
+---
+
+## ✏️ كشف الرسائل المعدَّلة | Edited message detection
+
+> ❓ **"أشتي يظهر لي الرسائل المعدَّلة الي تم تعديلها"** — تم إصلاح هذه الميزة بالكامل.
+
+### ما الذي كان مكسوراً؟ | What was broken?
+
+| المشكلة | الحل |
+|---|---|
+| كان يعرض النص القديم فقط، ولا يُظهر النص الجديد إطلاقاً | صار يعرض **قبل وبعد** في رسالة واحدة واضحة |
+| كان يلتقط شكلاً واحداً من أحداث التعديل (`messages.upsert`) | صار يلتقط الشكلين: `messages.upsert` و`messages.update` |
+| تعديلات رقم البوت نفسه كانت تُتجاهل تماماً | صارت تُرصد أيضاً |
+| لم يكن يُحفظ أي سجل للتعديل | صار يُحفظ في جدول `message_edits` ويظهر في لوحة التحكم |
+| لم تكن هناك طريقة لإيقاف الميزة | صار هناك أمر `.ضد_التعديل` لكل محادثة |
+
+### الشكل النهائي للتنبيه | What the alert looks like
+
+```
+✏️ تم تعديل رسالة!
+
+👤 المُعدِّل: @967xxxxxxxxx
+
+📝 قبل التعديل:
+"النص الأصلي"
+
+✨ بعد التعديل:
+"النص الجديد"
+
+⚔️ أستا لا ينسى ولا يتراجع!
+```
+
+### التحكم فيها | Controlling it
+
+```
+.ضد_التعديل           ← تفعيل الكشف في هذه المحادثة (مفعّل افتراضياً)
+.ضد_التعديل ايقاف     ← إيقاف التنبيهات (يستمر التسجيل في لوحة التحكم)
+.ضد_التعديل حالة      ← عرض الحالة الحالية
+.تعديلات              ← آخر الرسائل المعدَّلة في المحادثة
+.تعديلات              ← (بالرد على رسالة) سجل تعديلات تلك الرسالة بالذات
+```
+
+---
+
+## ⚙️ الإعدادات | Configuration
+
+كل الإعدادات في ملف `.env` (انسخه من `.env.example`):
+
+| المتغيّر / Variable | الافتراضي | الوصف / Description |
+|---|---|---|
+| `COMMAND_PREFIX` | `.` | بادئة الأوامر / Command prefix |
+| `OWNER_NUMBER` | — | رقم المالك بصيغة دولية بدون `+` / Owner number |
+| `EXTRA_OWNER_NUMBERS` | — | أرقام مالكين إضافية مفصولة بفاصلة / Extra owners |
+| `SECOND_ADMIN_NUMBER` | — | رقم الأدمن الثاني / Second admin |
+| `DASHBOARD_TOKEN` | عشوائي | رمز الدخول للوحة التحكم / Dashboard token |
+| `PORT` | `3000` | منفذ لوحة التحكم / Dashboard port |
+| `DASHBOARD_PUBLIC_URL` | — | الرابط العام للوحة عند النشر / Public dashboard URL |
+| `ENABLE_DASHBOARD` | `true` | تشغيل/إيقاف اللوحة / Toggle the dashboard |
+| `SESSION_NAMES` | `default` | أسماء الجلسات مفصولة بفاصلة / Session names |
+| `SESSION_BASE_DIR` | `./session` | مجلد حفظ الجلسات / Session storage folder |
+| `TIMEZONE` | `Asia/Riyadh` | المنطقة الزمنية للجدولة / Scheduler timezone |
+| `ENABLE_AUTO_REPLY` | `true` | الردود الآلية / Auto-replies |
+| `ENABLE_ANTI_DELETE` | `true` | كشف الحذف / Anti-delete |
+| `ENABLE_STICKER_MAKER` | `true` | صانع الملصقات / Sticker maker |
+| `ENABLE_SCHEDULER` | `true` | المهام المجدولة / Scheduler |
+| `ENABLE_SELF_EXECUTION` | `true` | تنفيذ أوامر رقم البوت / Self command execution |
+| `STICKER_PACK_NAME` | — | اسم حزمة الملصقات / Sticker pack name |
+| `STICKER_AUTHOR_NAME` | — | اسم مؤلف الملصقات / Sticker author |
+
+### تخصيص الردود بدون كود | Customising replies without code
+
+عدّل `src/responses.json` لتغيير شخصية البوت وردوده الجاهزة (رفض الصلاحيات، الصيانة، الأخطاء، التحيات)، أو استخدم لوحة التحكم / أمر `.رد` لإضافة ردود جديدة أثناء التشغيل.
+
+---
+
+## ☁️ النشر | Deployment
+
+المشروع جاهز للنشر على **Railway** أو أي منصة تدعم Nixpacks (`nixpacks.toml` مرفق).
+
 ```bash
-bash update.sh
+npm start   # أمر التشغيل / start command
 ```
+
+### ⚠️ مشكلة الجلسة عند إعادة النشر | Session loss on redeploy
+
+بيانات الربط تُحفظ في مجلد `session/`، وأغلب المنصات تمسح الملفات عند كل نشر — فتحتاج مسح QR من جديد وقد تظهر أخطاء `MessageCounterError` أو `Status 428`.
+
+**الحلول / Solutions:**
+1. **قرص دائم (Persistent Volume):** اربط مجلد الجلسة بقرص دائم واضبط `SESSION_BASE_DIR` عليه *(الأسهل والموصى به)*.
+2. **تخزين الجلسة في قاعدة بيانات:** عدّل `src/sessionManager.js` لاستخدام `useMongoDBAuthState` مع MongoDB Atlas.
+
+> 🚫 لا ترفع مجلد `session/` إلى GitHub أبداً — فهو يحتوي مفاتيح دخول حسابك (مستثنى في `.gitignore`).
+
+### مكتبة canvas اختيارية | canvas is optional
+
+مكتبة `canvas` (المستخدمة في بطاقة الترحيب المصوّرة) أصبحت ضمن `optionalDependencies`. إذا فشل بناؤها على منصتك، يكمل التثبيت ويعمل البوت بشكل طبيعي مع إرسال ترحيب نصي بدل البطاقة.
 
 ---
 
-## 🗂️ بنية المشروع (مختصرة)
+## 🗂️ بنية المشروع | Project structure
 
 ```
-whatsapp-bot/
-├── nixpacks.toml         # إعدادات بناء Railway (canvas)
+w-bot/
 ├── src/
-│   ├── config.js          # كل الإعدادات (البادئة، أرقام المالكين...)
-│   ├── responses.json      # الردود المشتركة القابلة للتعديل بدون كود
-│   ├── database/db.js      # قاعدة بيانات SQLite (رسائل، حظر، ألعاب...)
-│   ├── handlers/           # معالجات الرسائل والأوامر
-│   ├── commands/           # كل أوامر البوت، ملف لكل فئة
-│   └── utils/               # أدوات مساعدة (Canvas، الردود، اللوق)
+│   ├── index.js                 # نقطة التشغيل (يشغّل اللوحة + الجلسات)
+│   ├── config.js                # قراءة الإعدادات من .env
+│   ├── sessionManager.js        # إدارة جلسات Baileys وحالة الاتصال وQR
+│   ├── responses.json           # ردود البوت القابلة للتعديل بدون كود
+│   ├── handlers/
+│   │   ├── messageHandler.js    # توجيه كل رسالة واردة
+│   │   ├── commandHandler.js    # سجل الأوامر + اقتراح "هل تقصد؟"
+│   │   ├── editHandler.js       # ✏️ كشف الرسائل المعدَّلة
+│   │   └── deleteHandler.js     # 🗑️ كشف الرسائل المحذوفة
+│   ├── commands/
+│   │   ├── registry.js          # 📖 سجل الأوامر (مصدر قائمة المساعدة)
+│   │   ├── info.js              # قائمة المساعدة المولّدة تلقائياً
+│   │   ├── fun.js               # 145 شخصية أنمي
+│   │   ├── games.js             # الألعاب والأسئلة والفعاليات
+│   │   ├── groupAdmin.js        # أوامر إدارة المجموعات
+│   │   ├── history.js           # سجل التعديلات والحذف
+│   │   ├── islamic.js           # الآيات والأذكار
+│   │   ├── animeNews.js         # أخبار وبحث الأنمي
+│   │   ├── extras.js            # عملات، ترجمة، استطلاعات، نكت
+│   │   ├── utils.js             # طقس، ويكي، تفعيل/إيقاف البوت
+│   │   ├── sticker.js           # صانع الملصقات
+│   │   ├── reminder.js          # التذكيرات
+│   │   ├── admin.js             # أوامر الإدارة والمالك
+│   │   └── owner.js             # الصيانة والإحصائيات
+│   ├── database/db.js           # SQLite: رسائل، تعديلات، حظر، ألعاب…
+│   ├── scheduler/               # المهام المجدولة والتنظيف
+│   ├── utils/                   # السجل، الردود، بطاقة الترحيب
+│   └── web/
+│       ├── app.js               # خادم لوحة التحكم + واجهة API
+│       └── index.html           # واجهة اللوحة
+├── test/                        # اختبارات (npm test)
+├── .env.example                 # نموذج الإعدادات
+└── nixpacks.toml                # إعدادات النشر
 ```
 
----
+### الاختبارات | Tests
 
-## 🛡️ إدارة الجلسات والنشر
-
-## 🛡️ إدارة الجلسات وتحذيرات النشر
-
-إذا نشرت البوت على منصة مثل **Railway** أو **Render** أو **Heroku**، قد تواجه مشاكل في الجلسة (مثل `Connection Closed` أو `MessageCounterError`). هذا يحدث لأن مجلد `session/` يُحذف مع كل إعادة تشغيل.
-
-**🔴 لا تحفظ الجلسة على GitHub تلقائياً!**
-واتساب يحدّث مفاتيح الأمان مع كل رسالة تقريباً، ورفع الجلسة تلقائياً لـ GitHub سيستنزف حدود GitHub API بسرعة وينفخ حجم المستودع.
-
-**✅ الحلول الموصى بها:**
-1. **أقراص دائمة (Persistent Volumes):** إذا كانت منصتك تدعم الأقراص (مثل Railway Volumes)، اربطه بمجلد `/session`.
-2. **تخزين الجلسة في MongoDB:** عدّل `sessionManager.js` لاستخدام `useMongoDBAuthState` (مدعومة أصلاً من Baileys) لتخزين بيانات الاعتماد في قاعدة بيانات سحابية مجانية مثل MongoDB Atlas (موصى به بشدة للنشر السحابي).
-
----
-
-## 🤖 ملخّص للنموذج الذكي القادم
-
-*(انسخ هذا القسم والصقه لأي مساعد ذكاء اصطناعي تعمل معه لاحقاً حتى يفهم المشروع فوراً)*
-
-```text
-أنت مطوّر خبير full-stack تعمل على مشروع "Asta WhatsApp Bot".
-
-التقنيات: Node.js, @whiskeysockets/baileys, better-sqlite3 (SQLite).
-الملفات الأساسية:
-- src/index.js (نقطة الدخول)
-- src/sessionManager.js (يدير جلسات واتصال Baileys)
-- src/handlers/messageHandler.js و commandHandler.js (توجيه الرسائل والأوامر)
-- src/commands/*.js (كل الميزات، كل فئة في ملف منفصل)
-- src/responses.json (الردود المشتركة القابلة للتعديل بدون كود)
-- src/database/db.js (قاعدة بيانات SQLite: رسائل، حظر، ألعاب، إعدادات...)
-
-ملاحظات مهمة:
-1. البوت يعمل بالكامل مع الجدولة، APIs الأنمي (Jikan)، الألعاب، نظام الحظر، وفعاليات جماعية تلقائية.
-2. واجه المستخدم مشاكل في جلسات Baileys (MessageCounterError و Status 428) عند إعادة النشر لأن الملفات المحلية تُمسح. لا تقترح رفع الجلسة إلى GitHub؛ وجّه المستخدم لاستخدام Railway Volume أو useMongoDBAuthState مع MongoDB Atlas.
-3. حافظ على التعديلات معيارية (modular). شخصية أستا "الصاخبة والمتحمسة" شرط أساسي لكل الردود الجديدة.
-4. بادئة الأوامر الحالية هي النقطة (.) وليست علامة التعجب (!).
-5. المالكون الحاليون: 967784773314 و967784609423 (config.ownerNumbers)، بالإضافة لتنفيذ ذاتي للأوامر عند إرسالها من رقم البوت نفسه.
-
-هدفك: الاستمرار بالتطوير بسلاسة دون كسر آليات SQLite الحالية. راجع دائماً src/database/db.js قبل إنشاء أي جداول جديدة.
+```bash
+npm test
 ```
 
----
-
-## 📜 الترخيص والاستخدام
-إذا رغبت باستخدام هذا البوت، تواصل مع مالك المشروع أولاً.
+تغطي الاختبارات قاعدة البيانات ومعالج الرسائل المعدَّلة (المسارين `upsert` و`update`، منع التكرار، حالة الإيقاف، وتعديلات رقم البوت نفسه).
 
 ---
 
-🍀 **تجاوز حدودك هنا والآن!**
+## 🔧 استكشاف الأخطاء | Troubleshooting
+
+| المشكلة | السبب والحل |
+|---|---|
+| **لا أجد لوحة التحكم** | الرابط يُطبع عند كل تشغيل، أو أرسل `.لوحة` من رقم المالك. تأكد أن `ENABLE_DASHBOARD` ليست `false`. |
+| **اللوحة تطلب رمز وصول** | الرمز مطبوع في سجل التشغيل. ثبّته بوضع `DASHBOARD_TOKEN` في `.env`. |
+| **البوت لا يرد على الأوامر** | تأكد من البادئة الصحيحة (`.` افتراضياً)، ومن أن البوت غير موقوف في المحادثة (`.تفعيل-بوت`)، ومن أنك غير محظور. |
+| **البوت لا يرد في المجموعة فقط** | قد يكون موقوفاً هناك بأمر `.إيقاف-بوت` — فعّله بـ `.تفعيل-بوت`. |
+| **لا تظهر الرسائل المعدَّلة** | تحقق بـ `.ضد_التعديل حالة`، وتذكّر أن الرسائل التي أُرسلت قبل تشغيل البوت لا يوجد لها نص قديم محفوظ. |
+| **`Cannot derive from empty media key`** | رسائل قديمة من مزامنة السجل — يتجاهلها البوت تلقائياً، وهي غير ضارة. |
+| **`MessageCounterError` / `Status 428`** | ضاعت ملفات الجلسة بعد النشر — راجع قسم [النشر](#️-النشر--deployment). |
+| **فشل تثبيت `canvas`** | لا مشكلة، فهي اختيارية — سيعمل البوت ويرسل ترحيباً نصياً. |
+| **أوامر الإدارة لا تعمل** | يجب أن يكون البوت **مشرفاً** في المجموعة. |
+
+---
+
+## 👨‍💻 المطوّر | Developer
+
+<div align="center">
+
+**ENG. YOUSEF** — *يوسف*
+
+🌐 [engyusef.alpha-code.net](https://engyusef.alpha-code.net) · 💻 [github.com/yswef](https://github.com/yswef) · 📦 [github.com/yswef/w-bot](https://github.com/yswef/w-bot)
+
+</div>
+
+---
+
+## 📜 الترخيص | License
+
+هذا المشروع شخصي — إذا رغبت باستخدامه أو تطويره، تواصل مع مالك المشروع أولاً.
+This is a personal project — please contact the owner before using or redistributing it.
+
+---
+
+<div align="center">
+
+🍀 **تجاوز حدودك هنا والآن!** 🍀
+
+*Surpass your limits, right here, right now!*
+
+</div>

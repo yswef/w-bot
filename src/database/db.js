@@ -70,7 +70,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_settings (
     chat_id TEXT PRIMARY KEY,
     anti_link INTEGER DEFAULT 0,
-    welcome_enabled INTEGER DEFAULT 0
+    welcome_enabled INTEGER DEFAULT 0,
+    anti_edit INTEGER DEFAULT 1
   )
 `);
 
@@ -80,6 +81,100 @@ db.exec(`
     value TEXT NOT NULL
   )
 `);
+
+// =============================================
+// 🔧 ترحيل تلقائي للأعمدة الجديدة على قواعد البيانات القديمة
+// (SQLite لا يضيف الأعمدة الجديدة لجدول موجود مسبقاً، فنضيفها يدوياً)
+// =============================================
+function ensureColumn(table, column, definition) {
+  try {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!columns.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  } catch (err) {
+    // لا نوقف البوت بسبب فشل ترحيل واحد
+    console.error(`[db] تعذر إضافة العمود ${column} إلى ${table}: ${err.message}`);
+  }
+}
+
+ensureColumn('chat_settings', 'anti_edit', 'INTEGER DEFAULT 1');
+ensureColumn('messages', 'is_edited', 'INTEGER DEFAULT 0');
+ensureColumn('messages', 'edit_count', 'INTEGER DEFAULT 0');
+
+// =============================================
+// ✏️ سجل الرسائل المعدَّلة (Edited messages log)
+// يحفظ النص قبل التعديل وبعده حتى يظهر للمستخدم ويبقى في لوحة التحكم
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS message_edits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    sender_id TEXT,
+    sender_name TEXT,
+    old_text TEXT,
+    new_text TEXT,
+    edited_at INTEGER NOT NULL
+  )
+`);
+
+db.exec(`CREATE INDEX IF NOT EXISTS idx_message_edits_msg ON message_edits (message_id)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_chat_time ON messages (chat_id, timestamp DESC)`);
+
+function recordMessageEdit({ messageId, chatId, senderId, senderName, oldText, newText }) {
+  db.prepare(`
+    INSERT INTO message_edits (message_id, chat_id, sender_id, sender_name, old_text, new_text, edited_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(messageId, chatId, senderId || null, senderName || null, oldText || null, newText || null, Date.now());
+
+  // نحدّث النص المحفوظ للنسخة الأحدث مع تعليم الرسالة كمعدّلة
+  db.prepare(`
+    UPDATE messages
+    SET text_content = ?, is_edited = 1, edit_count = COALESCE(edit_count, 0) + 1
+    WHERE id = ?
+  `).run(newText || null, messageId);
+}
+
+function getEditHistory(messageId) {
+  return db.prepare(`SELECT * FROM message_edits WHERE message_id = ? ORDER BY edited_at ASC`).all(messageId);
+}
+
+function getRecentEdits(limit = 50) {
+  return db.prepare(`SELECT * FROM message_edits ORDER BY edited_at DESC LIMIT ?`).all(limit);
+}
+
+function getRecentDeleted(limit = 50) {
+  return db.prepare(`SELECT * FROM messages WHERE is_deleted = 1 ORDER BY timestamp DESC LIMIT ?`).all(limit);
+}
+
+function getRecentMessages(limit = 50) {
+  return db.prepare(`SELECT * FROM messages ORDER BY timestamp DESC LIMIT ?`).all(limit);
+}
+
+function getMessagesForChat(chatId, limit = 50) {
+  return db.prepare(`SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp DESC LIMIT ?`).all(chatId, limit);
+}
+
+// إحصائيات عامة تُعرض في لوحة التحكم وفي أمر .احصائيات
+function getStats() {
+  const one = (sql, ...params) => {
+    try { return db.prepare(sql).get(...params)?.n ?? 0; } catch { return 0; }
+  };
+  return {
+    totalMessages: one(`SELECT COUNT(*) AS n FROM messages`),
+    totalChats: one(`SELECT COUNT(DISTINCT chat_id) AS n FROM messages`),
+    totalUsers: one(`SELECT COUNT(DISTINCT sender_id) AS n FROM messages`),
+    deletedMessages: one(`SELECT COUNT(*) AS n FROM messages WHERE is_deleted = 1`),
+    editedMessages: one(`SELECT COUNT(*) AS n FROM message_edits`),
+    customReplies: one(`SELECT COUNT(*) AS n FROM custom_replies`),
+    customReactions: one(`SELECT COUNT(*) AS n FROM custom_reactions`),
+    bannedUsers: one(`SELECT COUNT(*) AS n FROM banned_users`),
+    pendingReminders: one(`SELECT COUNT(*) AS n FROM reminders WHERE sent = 0`),
+    scheduledEvents: one(`SELECT COUNT(*) AS n FROM scheduled_events WHERE active = 1`),
+    messagesToday: one(`SELECT COUNT(*) AS n FROM messages WHERE timestamp >= ?`, Date.now() - 24 * 60 * 60 * 1000),
+  };
+}
 
 function saveMessage(msg) {
   const stmt = db.prepare(`
@@ -126,7 +221,12 @@ function setWelcomeMessage({ chatId, message, imagePath, enabled = true }) {
 }
 
 function getWelcomeMessage(chatId) {
-  return db.prepare(`SELECT * FROM welcome_messages WHERE chat_id = ?`).get(chatId) || null;
+  const row = db.prepare(`SELECT * FROM welcome_messages WHERE chat_id = ?`).get(chatId);
+  if (!row) return null;
+  // ⚠️ إصلاح: العمود في القاعدة اسمه image_path بينما بقية الكود (admin.js
+  // والاختبارات) يقرأ imagePath، فكان مسار الصورة يضيع عند كل تحديث لرسالة
+  // الترحيب. نُرجع الاسمين معاً للتوافق.
+  return { ...row, imagePath: row.image_path };
 }
 
 function saveLastSeen({ chatId, senderId, lastSeen = Date.now() }) {
@@ -187,11 +287,11 @@ function clearGameState(chatId) {
 
 function getChatSettings(chatId) {
   const row = db.prepare(`SELECT * FROM chat_settings WHERE chat_id = ?`).get(chatId);
-  return row || { anti_link: 0, welcome_enabled: 0 };
+  return row || { anti_link: 0, welcome_enabled: 0, anti_edit: 1 };
 }
 
 function setChatSetting(chatId, key, value) {
-  const validKeys = ['anti_link', 'welcome_enabled'];
+  const validKeys = ['anti_link', 'welcome_enabled', 'anti_edit'];
   if (!validKeys.includes(key)) return;
   db.prepare(`
     INSERT INTO chat_settings (chat_id, ${key})
@@ -374,4 +474,11 @@ module.exports = {
   deleteReminder,
   getCachedCharacterImage,
   setCachedCharacterImage,
+  recordMessageEdit,
+  getEditHistory,
+  getRecentEdits,
+  getRecentDeleted,
+  getRecentMessages,
+  getMessagesForChat,
+  getStats,
 };

@@ -11,10 +11,27 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
-// const startDashboard = require('./web/dashboard');
 
 const activeBots = new Map();
-let dashboardStarted = false;
+
+// 📊 حالة كل جلسة (تُعرض في لوحة التحكم): متصل/غير متصل + آخر رمز QR
+const sessionStatus = new Map();
+
+function updateStatus(name, patch) {
+  const current = sessionStatus.get(name) || {
+    name,
+    connection: 'connecting',
+    qr: null,
+    user: null,
+    connectedAt: null,
+    lastDisconnect: null,
+  };
+  sessionStatus.set(name, { ...current, ...patch });
+}
+
+function getSessionsStatus() {
+  return Array.from(sessionStatus.values());
+}
 
 function normalizeSessionName(value) {
   return (value || 'default').trim().replace(/[\\/]+/g, '-').replace(/^\.+/, '');
@@ -41,6 +58,8 @@ async function startBot(sessionName = 'default') {
     fs.mkdirSync(sessionDir, { recursive: true });
   }
 
+  updateStatus(normalizedName, { connection: 'connecting' });
+
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -56,14 +75,21 @@ async function startBot(sessionName = 'default') {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      logger.info(`[${normalizedName}] Scan the QR code below to connect:`);
+      logger.info(`[${normalizedName}] امسح رمز QR التالي من واتساب > الأجهزة المرتبطة:`);
       qrcode.generate(qr, { small: true });
+      // نخزّن الرمز حتى يظهر أيضاً داخل لوحة التحكم (أسهل بكثير من الطرفية)
+      updateStatus(normalizedName, { connection: 'qr', qr });
     }
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       logger.warn(`[${normalizedName}] Connection closed. Reconnect? ${shouldReconnect}`);
+      updateStatus(normalizedName, {
+        connection: 'close',
+        qr: null,
+        lastDisconnect: { at: Date.now(), statusCode: statusCode || null, willReconnect: shouldReconnect },
+      });
       if (shouldReconnect) {
         setTimeout(() => startBot(normalizedName), 3000);
       } else {
@@ -71,6 +97,12 @@ async function startBot(sessionName = 'default') {
       }
     } else if (connection === 'open') {
       logger.info(`[${normalizedName}] ✅ Connected to WhatsApp successfully.`);
+      updateStatus(normalizedName, {
+        connection: 'open',
+        qr: null,
+        user: sock.user?.id || null,
+        connectedAt: Date.now(),
+      });
       // تحميل مسبق لصور شخصيات الأنمي في الخلفية (لا يوقف تشغيل البوت)
       require('./commands/fun').warmupCharacterImages().catch((err) => {
         logger.error(`فشل التحميل المسبق لصور الشخصيات: ${err.message}`);
@@ -83,11 +115,6 @@ async function startBot(sessionName = 'default') {
   sock.ev.on('messages.update', (updates) => handleMessageUpdates(updates, sock));
 
   activeBots.set(normalizedName, sock);
-
-  // if (!dashboardStarted) {
-  //     dashboardStarted = true;
-  //     startDashboard();
-  //   }
 
   if (normalizedName === getConfiguredSessionNames()[0]) {
     startScheduler(sock);
@@ -117,6 +144,11 @@ function getActiveSessionNames() {
   return Array.from(activeBots.keys());
 }
 
+function getActiveSocket(sessionName) {
+  if (sessionName) return activeBots.get(normalizeSessionName(sessionName)) || null;
+  return activeBots.values().next().value || null;
+}
+
 async function startAllSessions() {
   const names = getConfiguredSessionNames();
   for (const name of names) {
@@ -131,4 +163,6 @@ module.exports = {
   getActiveSessionNames,
   getConfiguredSessionNames,
   getSessionPath,
+  getSessionsStatus,
+  getActiveSocket,
 };

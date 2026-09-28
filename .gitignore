@@ -5,3 +5,8 @@ session/
 .env
 logs/
 *.log
+
+*.db-wal
+*.db-shm
+media_store/*
+!media_store/.gitkeep

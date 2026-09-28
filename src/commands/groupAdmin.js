@@ -3,7 +3,7 @@
 // =============================================
 
 const config = require('../config');
-const { setChatSetting, addScheduledEvent, banUser, unbanUser, getBannedUsers } = require('../database/db');
+const { setChatSetting, getChatSettings, addScheduledEvent, banUser, unbanUser, getBannedUsers } = require('../database/db');
 const responses = require('../utils/responses');
 
 // التحقق من صلاحيات المشرف داخل المجموعة
@@ -251,6 +251,26 @@ module.exports = async function groupAdminCommand({ sock, msg, args, chatId, sen
         const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
         setChatSetting(chatId, 'anti_link', enable);
         await sock.sendMessage(chatId, { text: enable ? '🛡️ تم تفعيل منع الروابط! سيف أستا سيحطم أي رابط غريب!' : '🔓 تم إيقاف منع الروابط.' }, { quoted: msg });
+        return;
+    }
+
+    // ===== كشف الرسائل المعدَّلة (Anti-Edit) =====
+    // كان هذا الأمر مسجّلاً في commandHandler بدون أي تنفيذ فعلي (أمر ميت)
+    if (commandKey === 'ضد_التعديل' || commandKey === 'ضد-التعديل' || commandKey === 'antiedit') {
+        if (!adminOrOwner) return await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_admin') }, { quoted: msg });
+        const arg = (args[0] || '').toLowerCase();
+        if (arg === 'حالة' || arg === 'status') {
+            const current = getChatSettings(chatId).anti_edit !== 0;
+            await sock.sendMessage(chatId, { text: `✏️ كشف الرسائل المعدَّلة حالياً: *${current ? 'مفعّل ✅' : 'متوقف ⛔'}*` }, { quoted: msg });
+            return;
+        }
+        const enable = arg !== 'off' && arg !== 'ايقاف' && arg !== 'إيقاف';
+        setChatSetting(chatId, 'anti_edit', enable);
+        await sock.sendMessage(chatId, {
+            text: enable
+                ? '✏️ تم تفعيل كشف الرسائل المعدَّلة! أي رسالة تُعدَّل سيعرض أستا نصها *قبل وبعد* التعديل. ⚔️'
+                : '🔕 تم إيقاف كشف الرسائل المعدَّلة في هذه المحادثة (يبقى التسجيل في لوحة التحكم).',
+        }, { quoted: msg });
         return;
     }
 

@@ -1,5 +1,5 @@
 const os = require('os');
-const { getGlobalSetting, setGlobalSetting, db } = require('../database/db');
+const { getGlobalSetting, setGlobalSetting, getStats, db } = require('../database/db');
 const config = require('../config');
 const responses = require('../utils/responses');
 
@@ -28,22 +28,34 @@ module.exports = async function ownerCommand({ sock, msg, args, chatId, senderId
     }
 
     if (commandKey === 'stats' || commandKey === 'احصائيات') {
-        const totalMem = (os.totalmem() / 1024 / 1024).toFixed(2);
-        const freeMem = (os.freemem() / 1024 / 1024).toFixed(2);
-        const usedMem = (totalMem - freeMem).toFixed(2);
+        const totalMem = os.totalmem() / 1024 / 1024;
+        const freeMem = os.freemem() / 1024 / 1024;
+        const usedMem = totalMem - freeMem;
+        const heap = process.memoryUsage().heapUsed / 1024 / 1024;
 
+        const s = getStats();
         const groups = db.prepare("SELECT COUNT(DISTINCT chat_id) as count FROM messages WHERE chat_id LIKE '%@g.us'").get().count;
 
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const msgsToday = db.prepare("SELECT COUNT(*) as count FROM messages WHERE timestamp >= ?").get(startOfDay.getTime()).count;
+        const up = process.uptime();
+        const uptime = `${Math.floor(up / 86400)}ي ${Math.floor((up % 86400) / 3600)}س ${Math.floor((up % 3600) / 60)}د`;
 
-        const stats = `⚙️ *إحصائيات أستا ساما* ⚙️\n\n` +
+        const stats =
+            `⚙️ *إحصائيات أستا ساما* ⚙️\n\n` +
+            `⏱️ *مدة التشغيل:* ${uptime}\n` +
             `📊 *المجموعات النشطة:* ${groups}\n` +
-            `💬 *الرسائل المعالجة اليوم:* ${msgsToday}\n` +
-            `🧠 *استهلاك الرام:* ${usedMem} MB / ${totalMem} MB\n\n` +
+            `👥 *إجمالي المحادثات:* ${s.totalChats}  ·  *المستخدمون:* ${s.totalUsers}\n` +
+            `💬 *إجمالي الرسائل:* ${s.totalMessages}\n` +
+            `🕐 *رسائل آخر 24 ساعة:* ${s.messagesToday}\n` +
+            `✏️ *رسائل معدَّلة مرصودة:* ${s.editedMessages}\n` +
+            `🗑️ *رسائل محذوفة مرصودة:* ${s.deletedMessages}\n` +
+            `🤖 *ردود مخصصة:* ${s.customReplies}  ·  *تفاعلات:* ${s.customReactions}\n` +
+            `🚫 *المحظورون:* ${s.bannedUsers}\n` +
+            `⏰ *تذكيرات معلّقة:* ${s.pendingReminders}  ·  *مهام مجدولة:* ${s.scheduledEvents}\n` +
+            `🧠 *الذاكرة:* ${usedMem.toFixed(0)} / ${totalMem.toFixed(0)} MB (البوت: ${heap.toFixed(1)} MB)\n` +
+            `🟢 *Node.js:* ${process.version}\n\n` +
             `🍀 *أستا في أفضل حالاته! طاقتي السحرية في أوجها!*`;
 
         await sock.sendMessage(chatId, { text: stats }, { quoted: msg });
+        return;
     }
 };

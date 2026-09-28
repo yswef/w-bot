@@ -7,6 +7,8 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const responses = require('../utils/responses');
 const handleCommand = require('./commandHandler');
+const { handleEditFromUpsert } = require('./editHandler');
+const { handleRevokeFromUpsert } = require('./deleteHandler');
 const { isOwnerId } = require('./commandHandler');
 const { checkActiveAnswer } = require('../commands/games');
 // دالة التحقق من إيقاف البوت في مجموعة معينة (safe import)
@@ -81,10 +83,22 @@ async function handleWelcomeMessage(msg, sock, chatId) {
         pfp = null;
       }
 
+      const caption = `🍀 أهلاً وسهلاً بك يا @${userName} في مجموعة أستا ساما!\nنأمل ألا تختفي إرادتك للمشاركة! ⚔️`;
+
       const buffer = await createWelcomeCard(userName, pfp);
-      await sock.sendMessage(chatId, { image: buffer, caption: 'أهلاً وسهلاً بك في مجموعة أستا ساما! نأمل ألا تختفي إرادتك للمشاركة! 🍀⚔️' });
+      await sock.sendMessage(chatId, { image: buffer, caption, mentions: [participant] });
     } catch (err) {
-      logger.warn('Failed to send canvas welcome message: ' + err.message);
+      // حتى لو فشلت بطاقة Canvas (غير مثبتة/خطأ في الرسم) نرحّب نصياً على الأقل
+      logger.warn('Failed to send canvas welcome card, falling back to text: ' + err.message);
+      try {
+        const userName = participant.split('@')[0];
+        await sock.sendMessage(chatId, {
+          text: `🍀 أهلاً وسهلاً بك يا @${userName} في مجموعة أستا ساما!\nنأمل ألا تختفي إرادتك للمشاركة! ⚔️`,
+          mentions: [participant],
+        });
+      } catch (fallbackErr) {
+        logger.warn('Failed to send fallback welcome message: ' + fallbackErr.message);
+      }
     }
   }
 }
@@ -126,6 +140,13 @@ async function handleIncomingMessages({ messages, type }, sock) {
       // تخطي الرسائل الفارغة
       if (!msg.message) continue;
 
+      // ✏️ رصد تعديل الرسائل أولاً — حتى التعديلات الصادرة من رقم البوت نفسه
+      // (كانت تُبتلع سابقاً داخل فرع fromMe فلا يظهر أي تنبيه عنها إطلاقاً)
+      if (await handleEditFromUpsert(msg, sock)) continue;
+
+      // 🗑️ رصد الحذف الوارد عبر upsert (بعض الأجهزة ترسله هكذا وليس عبر update)
+      if (await handleRevokeFromUpsert(msg, sock)) continue;
+
       // رسائل مرسلة من رقم البوت نفسه (هاتفك المربوط) -> نفّذ الأوامر تلقائياً كمالك، وتخطَّ باقي المعالجة
       if (msg.key.fromMe) {
         await handleSelfCommand(msg, sock);
@@ -135,19 +156,6 @@ async function handleIncomingMessages({ messages, type }, sock) {
       const chatId = msg.key.remoteJid;
       // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
       const senderId = msg.key.participant || msg.key.remoteJid;
-
-      // منع تعديل الرسائل
-      const protocolType = msg.message?.protocolMessage?.type;
-      if (protocolType === 14) {
-        await sock.sendMessage(chatId, { text: '⚔️ أستا لاحظ أنك قمت بتعديل رسالتك! لا يمكنك التراجع عن كلماتك في قتال السحر!' }, { quoted: msg });
-
-        const originalId = msg.message.protocolMessage.key.id;
-        const oldMsg = getMessage(originalId);
-        if (oldMsg && oldMsg.text_content) {
-          await sock.sendMessage(chatId, { text: `لقد قلت سابقاً:\n"${oldMsg.text_content}"\n\nأستا لا ينسى ولا يتراجع!` }, { quoted: msg });
-        }
-        continue;
-      }
 
       const text = extractText(msg.message);
       const msgType = getRealMessageType(msg.message);
@@ -240,6 +248,16 @@ async function handleIncomingMessages({ messages, type }, sock) {
       if (text && text.startsWith(config.prefix)) {
         await handleCommand({ sock, msg, text, chatId, senderId });
         continue;
+      }
+
+      // 📖 كلمات مفتاحية تفتح قائمة الأوامر بدون بادئة — لأن كثيراً من
+      // المستخدمين لا يعرفون أصلاً أن هناك بادئة أوامر.
+      if (text && !senderBanned) {
+        const helpWords = ['اوامر', 'الاوامر', 'أوامر', 'الأوامر', 'مساعدة', 'مساعده', 'قائمة الاوامر', 'menu', 'help', 'commands'];
+        if (helpWords.includes(text.trim().toLowerCase())) {
+          await handleCommand({ sock, msg, text: `${config.prefix}مساعدة`, chatId, senderId });
+          continue;
+        }
       }
 
       // 🎮 فعاليات الأنمي التلقائية (تفكيك/تخمين): يلتقط البوت الإجابة الصحيحة مباشرة من الدردشة بدون أمر

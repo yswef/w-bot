@@ -17,7 +17,9 @@ nixPkgs = [
 ]
 
 [phases.install]
-cmds = ["npm ci --omit=dev || npm install --omit=dev"]
+# canvas أصبحت اختيارية: لو فشل بناؤها يكمل التثبيت والبوت يعمل بدونها
+# canvas is optional now: if its build fails, install continues and the bot still runs
+cmds = ["npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund"]
 
 [phases.build]
 cmds = []

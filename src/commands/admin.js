@@ -1,7 +1,10 @@
 const { saveCustomReply, deleteCustomReply, setWelcomeMessage, getWelcomeMessage } = require('../database/db');
 const config = require('../config');
 const responses = require('../utils/responses');
-const { resetSession, getActiveSessionNames, getConfiguredSessionNames } = require('../sessionManager');
+// ⚠️ تُحمَّل بشكل كسول لتفادي اعتماد دائري (sessionManager ← commandHandler ← admin)
+function sessionManager() {
+  return require('../sessionManager');
+}
 
 module.exports = async function adminCommand({ sock, msg, args, chatId, senderId, commandKey }) {
   // التحقق من صلاحية المالك - يشمل كل المالكين والأدمن الثاني
@@ -67,14 +70,32 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
     return;
   }
 
-  if (commandKey === 'لوحة') {
-    const text = `🧩 لوحة التحكم جاهزة على الرابط المحلي:\nhttp://localhost:3000\n\nالجلسات المتاحة: ${getConfiguredSessionNames().join(', ')}`;
+  // 🖥️ يعرض رابط لوحة التحكم مع رمز الوصول (للمالك فقط — تم التحقق بالأعلى)
+  if (commandKey === 'لوحة' || commandKey === 'dashboard' || commandKey === 'panel') {
+    const port = process.env.PORT || process.env.DASHBOARD_PORT || 3000;
+    const token = require('../web/app').DASHBOARD_TOKEN;
+    const publicUrl = process.env.DASHBOARD_PUBLIC_URL || `http://localhost:${port}`;
+    const text =
+      `🖥️ *لوحة تحكم أستا*\n\n` +
+      `🔗 الرابط:\n${publicUrl}/?token=${token}\n\n` +
+      `🔑 رمز الوصول: \`${token}\`\n\n` +
+      `📊 من اللوحة تقدر تشوف: الرسائل المعدَّلة، الرسائل المحذوفة، الإحصائيات، ` +
+      `الردود والتفاعلات التلقائية، المحظورين، التذكيرات، ورمز QR للربط.\n\n` +
+      `🧩 الجلسات المتاحة: ${sessionManager().getConfiguredSessionNames().join(', ')}\n\n` +
+      `💡 لتثبيت الرمز بشكل دائم ضع \`DASHBOARD_TOKEN\` في ملف .env`;
     await sock.sendMessage(chatId, { text }, { quoted: msg });
     return;
   }
 
   if (commandKey === 'جلسات') {
-    const text = `🧩 الجلسات النشطة: ${getActiveSessionNames().join(', ') || 'لا توجد جلسات نشطة'}`;
+    const statuses = sessionManager().getSessionsStatus();
+    const details = statuses.length
+      ? statuses.map((st) => {
+          const icon = st.connection === 'open' ? '🟢 متصل' : st.connection === 'qr' ? '🟡 بانتظار QR' : '🔴 منقطع';
+          return `• ${st.name}: ${icon}`;
+        }).join('\n')
+      : 'لا توجد جلسات نشطة';
+    const text = `🧩 *حالة الجلسات*\n\n${details}`;
     await sock.sendMessage(chatId, { text }, { quoted: msg });
     return;
   }
@@ -82,7 +103,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
   if (commandKey === 'اعادةربط' || commandKey === 'reconnect') {
     const name = args[0] || 'default';
     await sock.sendMessage(chatId, { text: `🔄 جاري إعادة ربط الجلسة ${name}...` }, { quoted: msg });
-    await resetSession(name);
+    await sessionManager().resetSession(name);
     await sock.sendMessage(chatId, { text: `✅ تم إعادة ربط الجلسة ${name}` }, { quoted: msg });
     return;
   }
@@ -93,10 +114,29 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
       await sock.sendMessage(chatId, { text: `استخدم: ${config.prefix}بث <الرسالة>` }, { quoted: msg });
       return;
     }
-    const groups = [chatId];
-    for (const target of groups) {
-      await sock.sendMessage(target, { text: message });
+    // ⚠️ تحسين: كان "البث" يرسل للمحادثة الحالية فقط (أي أنه لم يكن بثاً إطلاقاً).
+    // الآن يرسل لكل المجموعات التي ينتمي إليها البوت، مع فاصل زمني بسيط بين
+    // كل رسالة والتي تليها تجنّباً لحظر الرقم بسبب الإرسال السريع.
+    let targets = [chatId];
+    try {
+      const groups = await sock.groupFetchAllParticipating();
+      const ids = Object.keys(groups || {});
+      if (ids.length) targets = ids;
+    } catch (err) {
+      await sock.sendMessage(chatId, { text: '⚠️ تعذر جلب قائمة المجموعات، سيتم الإرسال للمحادثة الحالية فقط.' }, { quoted: msg });
     }
-    await sock.sendMessage(chatId, { text: '✅ تم إرسال البث.' }, { quoted: msg });
+
+    let sent = 0;
+    let failed = 0;
+    for (const target of targets) {
+      try {
+        await sock.sendMessage(target, { text: `📢 *رسالة من إدارة أستا*\n\n${message}` });
+        sent += 1;
+      } catch {
+        failed += 1;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    await sock.sendMessage(chatId, { text: `✅ تم إرسال البث إلى ${sent} محادثة${failed ? ` (فشل ${failed})` : ''}.` }, { quoted: msg });
   }
 };

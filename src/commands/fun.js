@@ -8,6 +8,21 @@ const blackCloverMales = [
   { name: 'يونو (Yuno)', searchName: 'Yuno Grinberryall', image: 'https://i.pinimg.com/736x/d6/f1/b7/d6f1b7d5e49eeebfceca8ccaf745a96f.jpg', universe: 'blackclover', quote: 'الريح تحمل حلمي نحو القمة 🌪️' },
   { name: 'جوليوس (Julius)', searchName: 'Julius Novachrono', image: 'https://i.pinimg.com/736x/67/cc/d6/67ccd6abec7e928236d90a6e3cefe18c.jpg', universe: 'blackclover', quote: 'التضحية من أجل الآخرين هي أسمى أنواع السحر ✨' },
   { name: 'فينرال (Finral)', searchName: 'Finral Roulacase', image: 'https://i.pinimg.com/736x/0a/63/06/0a630623ec67a30ff16e3eb39dc75ee1.jpg', universe: 'blackclover', quote: 'حتى أبسط الأبواب قد تقود لأعظم الفرص 🌀' },
+
+  { name: 'ماجنا سوينغ (Magna)', searchName: 'Magna Swing', universe: 'blackclover', anime: 'Black Clover', quote: 'انفجاراتي تتحدث قبل لساني! 💥' },
+  { name: 'لاك فولتيا (Luck)', searchName: 'Luck Voltia', universe: 'blackclover', anime: 'Black Clover', quote: 'المخاطرة هي التوابل الحقيقية للمعركة ⚡' },
+  { name: 'غوش أدلاي (Gauche)', searchName: 'Gauche Adlai', universe: 'blackclover', anime: 'Black Clover', quote: 'كل ما أفعله هو من أجل أختي فقط 🪞' },
+  { name: 'زورا إيديال (Zora)', searchName: 'Zora Ideale', universe: 'blackclover', anime: 'Black Clover', quote: 'الفارس الحقيقي هو من يحمي الضعيف لا من يتباهى 🎭' },
+  { name: 'نوزيل سيلفا (Nozel)', searchName: 'Nozel Silva', universe: 'blackclover', anime: 'Black Clover', quote: 'الفخر لا يعني التخلي عن العائلة 🦅' },
+  { name: 'فويغوليون فيرميليون (Fuegoleon)', searchName: 'Fuegoleon Vermillion', universe: 'blackclover', anime: 'Black Clover', quote: 'النار التي تحمي أقوى من النار التي تحرق 🔥' },
+  { name: 'ويليام فانجينس (William)', searchName: 'William Vangeance', universe: 'blackclover', anime: 'Black Clover', quote: 'حتى الأشجار تحتاج جذوراً عميقة لتصمد 🌳' },
+  { name: 'ناخت فاوست (Nacht)', searchName: 'Nacht Faust', universe: 'blackclover', anime: 'Black Clover', quote: 'الظلام ليس عدواً، بل أداة بيد من يتقنه 🌑' },
+  { name: 'كلاوس لونيت (Klaus)', searchName: 'Klaus Lunettes', universe: 'blackclover', anime: 'Black Clover', quote: 'الانضباط هو السحر الذي لا يخذل أحداً 📏' },
+  { name: 'ليوبولد فيرميليون (Leopold)', searchName: 'Leopold Vermillion', universe: 'blackclover', anime: 'Black Clover', quote: 'سأشتعل حتى أصل لمستوى أخي! 🔥' },
+  { name: 'لانغريس فود (Langris)', searchName: 'Langris Vaude', universe: 'blackclover', anime: 'Black Clover', quote: 'تعلمت أن القوة بلا احترام مجرد ضجيج 🌀' },
+  { name: 'غوردون أغريبا (Gordon)', searchName: 'Gordon Agrippa', universe: 'blackclover', anime: 'Black Clover', quote: 'الأصدقاء الحقيقيون يسمعونك حتى لو همست 💀' },
+  { name: 'هنري ليجولانت (Henry)', searchName: 'Henry Legolant', universe: 'blackclover', anime: 'Black Clover', quote: 'البطء لا يعني الضعف، بل التحمّل 🏚️' },
+  { name: 'زينون زوغراتيس (Zenon)', searchName: 'Zenon Zogratis', universe: 'blackclover', anime: 'Black Clover', quote: 'العظام لا تكذب أبداً 🦴' },
 ];
 
 const blackCloverFemales = [
@@ -15,41 +30,138 @@ const blackCloverFemales = [
   { name: 'ميريليونا (Mereoleona)', searchName: 'Mereoleona Vermillion', image: 'https://i.pinimg.com/736x/01/a0/0c/01a00cc91866ff3428d000cd23a544f8.jpg', universe: 'blackclover', quote: 'القوة تُصقل بالنار لا بالراحة 🔥' },
   { name: 'فانيسا (Vanessa)', searchName: 'Vanessa Enoteca', image: 'https://i.pinimg.com/736x/95/9b/38/959b380feecfb6cdd2e08df2b9442ef5.jpg', universe: 'blackclover', quote: 'الحياة كلها قماشة، وأنا أرسم قدري بنفسي 🧵' },
   { name: 'تشارمي (Charmy)', searchName: 'Charmy Pappitson', image: 'https://i.pinimg.com/736x/ff/15/48/ff1548e6db966beab75083ece49efac9.jpg', universe: 'blackclover', quote: 'أفضل طريق للقلب يمر عبر معدة ممتلئة 🍞' },
+
+  { name: 'ميموزا فيرميليون (Mimosa)', searchName: 'Mimosa Vermillion', universe: 'blackclover', anime: 'Black Clover', quote: 'الشفاء فن، والرحمة أقوى أسلحتي 🌷' },
+  { name: 'سيكري سوالوتيل (Secre)', searchName: 'Secre Swallowtail', universe: 'blackclover', anime: 'Black Clover', quote: 'الوفاء لا تنتهي صلاحيته عبر القرون 🔒' },
+  { name: 'شارلوت روزلي (Charlotte)', searchName: 'Charlotte Roselei', universe: 'blackclover', anime: 'Black Clover', quote: 'الأشواك تحمي الوردة، وأنا أحمي من أحب 🌹' },
+  { name: 'غراي (Grey)', searchName: 'Grey', universe: 'blackclover', anime: 'Black Clover', quote: 'لست ضعيفة، أنا فقط أختار متى أظهر قوتي 🎨' },
+  { name: 'دوروثي أونسوورث (Dorothy)', searchName: 'Dorothy Unsworth', universe: 'blackclover', anime: 'Black Clover', quote: 'في عالم الأحلام، أنا من يضع القواعد 💤' },
+  { name: 'سول ماري (Sol)', searchName: 'Sol Marron', universe: 'blackclover', anime: 'Black Clover', quote: 'النساء لا يحتجن إذناً ليصبحن أقوى 🗿' },
+  { name: 'ريبيكا سكارليت (Rebecca)', searchName: 'Rebecca Scarlet', universe: 'blackclover', anime: 'Black Clover', quote: 'الحياة صعبة، لكن الابتسامة مجانية 🍀' },
+  { name: 'نيرو (Nero)', searchName: 'Nero', universe: 'blackclover', anime: 'Black Clover', quote: 'الصمت الطويل يخفي أعظم الأسرار 🐦' },
+  { name: 'سيستر ليلي (Sister Lily)', searchName: 'Lily Aquaria', universe: 'blackclover', anime: 'Black Clover', quote: 'الإيمان أقوى من أي سحر ⛪' },
+  { name: 'فانيكا زوغراتيس (Vanica)', searchName: 'Vanica Zogratis', universe: 'blackclover', anime: 'Black Clover', quote: 'لا شيء يثير حماسي مثل خصم لا يستسلم 🩸' },
 ];
 
-// شخصيات معروفة من مسلسلات أخرى - بلا رابط صورة ثابت، تُجلب صورتها
-// الحقيقية تلقائياً (انظر getCharacterImageUrl) باستخدام اسمها الكامل
-// الدقيق (searchName) لتفادي أي التباس مع شخصية أخرى بنفس النطق تقريباً
+// شخصيات من أنميات أخرى — الصور تُجلب تلقائياً من AniList عبر الاسم الكامل
+// الدقيق (searchName) مع التحقق من تطابق الاسم لتفادي عرض شخصية خاطئة،
+// وتُخزَّن بشكل دائم في قاعدة البيانات بعد أول مرة.
 const otherAnimeMales = [
-  { name: 'لاك فولتيا (Luck)', searchName: 'Luck Voltia', universe: 'other', quote: 'المخاطرة هي التوابل الحقيقية للمعركة 🎲' },
-  { name: 'ناروتو (Naruto)', searchName: 'Naruto Uzumaki', universe: 'other', quote: 'لن أتراجع عن كلمتي، فهذا وعدي الذي لا يتغير! 🍥' },
-  { name: 'ساسكي (Sasuke)', searchName: 'Sasuke Uchiha', universe: 'other', quote: 'القوة وحدها لا تكفي دون هدف واضح ⚡' },
-  { name: 'لوفي (Luffy)', searchName: 'Monkey D. Luffy', universe: 'other', quote: 'سأصبح ملك القراصنة، هذا قراري ولن يتغير! 🏴‍☠️' },
-  { name: 'زورو (Zoro)', searchName: 'Roronoa Zoro', universe: 'other', quote: 'الطريق للقمة مليء بالسقوط، لكنني لن أتراجع أبداً ⚔️' },
-  { name: 'غوكو (Goku)', searchName: 'Son Goku', universe: 'other', quote: 'القتال ضد الأقوياء هو ما يجعلني أشعر بأنني حي! 🔥' },
-  { name: 'إيتشيغو (Ichigo)', searchName: 'Ichigo Kurosaki', universe: 'other', quote: 'سأحمي من أحب مهما كلفني الأمر 🗡️' },
-  { name: 'ناتسو (Natsu)', searchName: 'Natsu Dragneel', universe: 'other', quote: 'طالما ناري مشتعلة، لن أستسلم أبداً 🔥' },
-  { name: 'إيرين (Eren)', searchName: 'Eren Yeager', universe: 'other', quote: 'سأقاتل حتى أحرر نفسي من هذا القفص 🗡️' },
-  { name: 'ليفاي (Levi)', searchName: 'Levi Ackerman', universe: 'other', quote: 'اختر بحكمة، فلا وقت للندم لاحقاً 🖤' },
-  { name: 'تانجيرو (Tanjiro)', searchName: 'Tanjiro Kamado', universe: 'other', quote: 'سأحمي عائلتي مهما حدث، هذا قسمي الذي لا يتغير 🌊' },
-  { name: 'ميدوريا (Izuku)', searchName: 'Izuku Midoriya', universe: 'other', quote: 'يمكنك أن تصبح بطلاً حتى لو بدأت من الصفر 💚' },
-  { name: 'إدوارد (Edward Elric)', searchName: 'Edward Elric', universe: 'other', quote: 'لكل شيء تكافؤ، وثمن النهوض دائماً يستحق الألم ⚙️' },
-  { name: 'غون (Gon)', searchName: 'Gon Freecss', universe: 'other', quote: 'لن أتوقف حتى أحقق ما وعدت به نفسي 🎣' },
+  { name: 'ناروتو (Naruto)', searchName: 'Naruto Uzumaki', universe: 'other', anime: 'Naruto', quote: 'لن أتراجع عن كلمتي، فهذا طريق النينجا الخاص بي! 🍥' },
+  { name: 'ساسكي (Sasuke)', searchName: 'Sasuke Uchiha', universe: 'other', anime: 'Naruto', quote: 'القوة وحدها لا تكفي دون هدف واضح ⚡' },
+  { name: 'كاكاشي (Kakashi)', searchName: 'Kakashi Hatake', universe: 'other', anime: 'Naruto', quote: 'من يخالف القوانين حثالة، ومن يتخلى عن رفاقه أسوأ من الحثالة 📖' },
+  { name: 'إيتاتشي (Itachi)', searchName: 'Itachi Uchiha', universe: 'other', anime: 'Naruto', quote: 'لا تحكم على أحد من مظهره، بل من قلبه 🌙' },
+  { name: 'غارا (Gaara)', searchName: 'Gaara', universe: 'other', anime: 'Naruto', quote: 'وجدت معنى وجودي حين بدأت أحمي غيري 🏜️' },
+  { name: 'جيرايا (Jiraiya)', searchName: 'Jiraiya', universe: 'other', anime: 'Naruto', quote: 'البطل الحقيقي هو من يصنع أبطالاً بعده 🐸' },
+  { name: 'مادارا (Madara)', searchName: 'Madara Uchiha', universe: 'other', anime: 'Naruto', quote: 'استيقظ للواقع، فالحياة معركة لا تنتهي 🌑' },
+  { name: 'لوفي (Luffy)', searchName: 'Monkey D. Luffy', universe: 'other', anime: 'One Piece', quote: 'سأصبح ملك القراصنة، هذا قراري ولن يتغير! 🏴‍☠️' },
+  { name: 'زورو (Zoro)', searchName: 'Roronoa Zoro', universe: 'other', anime: 'One Piece', quote: 'الطريق للقمة مليء بالسقوط، لكنني لن أتراجع أبداً ⚔️' },
+  { name: 'سانجي (Sanji)', searchName: 'Sanji', universe: 'other', anime: 'One Piece', quote: 'لا أركل بقدمي فقط، بل بكل مبادئي 🔥' },
+  { name: 'إيس (Ace)', searchName: 'Portgas D. Ace', universe: 'other', anime: 'One Piece', quote: 'أريد فقط أن يتذكرني العالم بأنني عشت 🔥' },
+  { name: 'لو (Law)', searchName: 'Trafalgar Law', universe: 'other', anime: 'One Piece', quote: 'الفوضى أحياناً هي أدق خطة 💉' },
+  { name: 'شانكس (Shanks)', searchName: 'Shanks', universe: 'other', anime: 'One Piece', quote: 'الوعد الذي تقطعه يساوي قيمتك كلها 🍶' },
+  { name: 'غوكو (Goku)', searchName: 'Son Goku', universe: 'other', anime: 'Dragon Ball', quote: 'القتال ضد الأقوياء هو ما يجعلني أشعر بأنني حي! 🔥' },
+  { name: 'فيجيتا (Vegeta)', searchName: 'Vegeta', universe: 'other', anime: 'Dragon Ball', quote: 'الكبرياء لا يعني الغرور، بل رفض الاستسلام 👑' },
+  { name: 'غوهان (Gohan)', searchName: 'Son Gohan', universe: 'other', anime: 'Dragon Ball', quote: 'الغضب بلا سيطرة ضعف، والهدوء قوة 💪' },
+  { name: 'إيتشيغو (Ichigo)', searchName: 'Ichigo Kurosaki', universe: 'other', anime: 'Bleach', quote: 'سأحمي من أحب مهما كلفني الأمر 🗡️' },
+  { name: 'بياكويا (Byakuya)', searchName: 'Byakuya Kuchiki', universe: 'other', anime: 'Bleach', quote: 'الكرامة لا تُمنح، بل تُنتزع بالانضباط 🌸' },
+  { name: 'كينباتشي (Kenpachi)', searchName: 'Kenpachi Zaraki', universe: 'other', anime: 'Bleach', quote: 'المتعة الحقيقية في خصم لا يسقط بسهولة ⚔️' },
+  { name: 'أيزن (Aizen)', searchName: 'Sousuke Aizen', universe: 'other', anime: 'Bleach', quote: 'من يقف في القمة وحده لا يرى إلا السماء 🕶️' },
+  { name: 'ناتسو (Natsu)', searchName: 'Natsu Dragneel', universe: 'other', anime: 'Fairy Tail', quote: 'طالما ناري مشتعلة، لن أستسلم أبداً 🔥' },
+  { name: 'غراي (Gray)', searchName: 'Gray Fullbuster', universe: 'other', anime: 'Fairy Tail', quote: 'الجليد يحمي كما يجرح، والأمر يعود لي ❄️' },
+  { name: 'لاكسوس (Laxus)', searchName: 'Laxus Dreyar', universe: 'other', anime: 'Fairy Tail', quote: 'العائلة ليست دماً فقط، بل من يقف معك 🌩️' },
+  { name: 'إيرين (Eren)', searchName: 'Eren Yeager', universe: 'other', anime: 'Attack on Titan', quote: 'سأقاتل حتى أحرر نفسي من هذا القفص 🗡️' },
+  { name: 'ليفاي (Levi)', searchName: 'Levi Ackerman', universe: 'other', anime: 'Attack on Titan', quote: 'اختر بحكمة، فلا وقت للندم لاحقاً 🖤' },
+  { name: 'أرمين (Armin)', searchName: 'Armin Arlert', universe: 'other', anime: 'Attack on Titan', quote: 'من لا يضحي بشيء لا يغيّر شيئاً 🌊' },
+  { name: 'تانجيرو (Tanjiro)', searchName: 'Tanjiro Kamado', universe: 'other', anime: 'Demon Slayer', quote: 'سأحمي عائلتي مهما حدث، هذا قسمي 🌊' },
+  { name: 'زينيتسو (Zenitsu)', searchName: 'Zenitsu Agatsuma', universe: 'other', anime: 'Demon Slayer', quote: 'الخوف لا يمنع الشجاعة، بل يصنعها ⚡' },
+  { name: 'إينوسكي (Inosuke)', searchName: 'Inosuke Hashibira', universe: 'other', anime: 'Demon Slayer', quote: 'اندفع أولاً وفكّر لاحقاً! 🐗' },
+  { name: 'رينغوكو (Rengoku)', searchName: 'Kyojuro Rengoku', universe: 'other', anime: 'Demon Slayer', quote: 'أشعل قلبك! هذا واجب من يحمل السيف 🔥' },
+  { name: 'غيو (Giyu)', searchName: 'Giyu Tomioka', universe: 'other', anime: 'Demon Slayer', quote: 'الهدوء هو أسرع الطرق إلى الضربة الصحيحة 🌊' },
+  { name: 'ميدوريا (Izuku)', searchName: 'Izuku Midoriya', universe: 'other', anime: 'My Hero Academia', quote: 'يمكنك أن تصبح بطلاً حتى لو بدأت من الصفر 💚' },
+  { name: 'باكوغو (Bakugo)', searchName: 'Katsuki Bakugo', universe: 'other', anime: 'My Hero Academia', quote: 'الفوز ليس كافياً، يجب أن يكون الأفضل 💥' },
+  { name: 'تودوروكي (Shoto)', searchName: 'Shoto Todoroki', universe: 'other', anime: 'My Hero Academia', quote: 'قوتي ملكي أنا، وليست إرث أحد 🔥❄️' },
+  { name: 'أول مايت (All Might)', searchName: 'All Might', universe: 'other', anime: 'My Hero Academia', quote: 'لا بأس الآن، لأنني هنا! 💪' },
+  { name: 'غوجو (Gojo)', searchName: 'Satoru Gojo', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'الأقوى لا يشك في نفسه أبداً 🕶️' },
+  { name: 'يوجي إيتادوري (Yuji)', searchName: 'Yuji Itadori', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'أريد أن يموت الناس بطريقة صحيحة 👊' },
+  { name: 'ميغومي (Megumi)', searchName: 'Megumi Fushiguro', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'أنقذ من أراه يستحق، هذه عدالتي 🐕' },
+  { name: 'نانامي (Nanami)', searchName: 'Kento Nanami', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'العمل الجاد لا يخون صاحبه أبداً 🕴️' },
+  { name: 'كيلوا (Killua)', searchName: 'Killua Zoldyck', universe: 'other', anime: 'Hunter x Hunter', quote: 'الصديق الحقيقي يستحق أن أتخلى عن ماضيي ⚡' },
+  { name: 'غون (Gon)', searchName: 'Gon Freecss', universe: 'other', anime: 'Hunter x Hunter', quote: 'لن أتوقف حتى أحقق ما وعدت به نفسي 🎣' },
+  { name: 'كورابيكا (Kurapika)', searchName: 'Kurapika', universe: 'other', anime: 'Hunter x Hunter', quote: 'الغضب المنظم أخطر من الغضب الأعمى ⛓️' },
+  { name: 'إدوارد (Edward Elric)', searchName: 'Edward Elric', universe: 'other', anime: 'Fullmetal Alchemist', quote: 'لكل شيء تكافؤ، وثمن النهوض يستحق الألم ⚙️' },
+  { name: 'ألفونس (Alphonse)', searchName: 'Alphonse Elric', universe: 'other', anime: 'Fullmetal Alchemist', quote: 'الجسد يتغير لكن القلب يبقى كما هو 🛡️' },
+  { name: 'روي مستانغ (Roy Mustang)', searchName: 'Roy Mustang', universe: 'other', anime: 'Fullmetal Alchemist', quote: 'النار تحت السيطرة تُنير، وخارجها تُدمّر 🔥' },
+  { name: 'سايتاما (Saitama)', searchName: 'Saitama', universe: 'other', anime: 'One Punch Man', quote: 'تدرّب حتى تتجاوز حدودك، ثم تجاوزها مرة أخرى 👊' },
+  { name: 'جينوس (Genos)', searchName: 'Genos', universe: 'other', anime: 'One Punch Man', quote: 'التلميذ الحقيقي يتعلم من كل هزيمة 🤖' },
+  { name: 'كيريتو (Kirito)', searchName: 'Kirito', universe: 'other', anime: 'Sword Art Online', quote: 'اللعبة انتهت حين تختار أن تكون حقيقياً ⚔️' },
+  { name: 'دينجي (Denji)', searchName: 'Denji', universe: 'other', anime: 'Chainsaw Man', quote: 'أحلامي بسيطة، لكنني أقاتل من أجلها بجنون 🔗' },
+  { name: 'سينكو (Senku)', searchName: 'Senku Ishigami', universe: 'other', anime: 'Dr. Stone', quote: 'العلم لا يخذل من يؤمن به 🧪' },
+  { name: 'ريمورو (Rimuru)', searchName: 'Rimuru Tempest', universe: 'other', anime: 'Tensei Shitara Slime Datta Ken', quote: 'القوة الحقيقية أن تصنع مكاناً يعيش فيه الجميع بسلام 💧' },
+  { name: 'ميليوداس (Meliodas)', searchName: 'Meliodas', universe: 'other', anime: 'Nanatsu no Taizai', quote: 'لن أدع أحداً يمس أصدقائي، أبداً ⚔️' },
+  { name: 'ثورفين (Thorfinn)', searchName: 'Thorfinn', universe: 'other', anime: 'Vinland Saga', quote: 'ليس لي أعداء، هذا ما تعلمته بعد كل ذلك الدم 🌾' },
+  { name: 'لويد فورجر (Loid)', searchName: 'Loid Forger', universe: 'other', anime: 'Spy x Family', quote: 'أحياناً تصبح المهمة عائلة حقيقية 🕵️' },
+  { name: 'شينرا (Shinra)', searchName: 'Shinra Kusakabe', universe: 'other', anime: 'Enen no Shouboutai', quote: 'سأصبح البطل الذي ينقذ الجميع من اللهب 🔥' },
+  { name: 'هيناتا شويو (Hinata Shoyo)', searchName: 'Shouyou Hinata', universe: 'other', anime: 'Haikyuu!!', quote: 'القصر لا يعني الضعف، بل قفزة أعلى 🏐' },
+  { name: 'كاجياما (Kageyama)', searchName: 'Tobio Kageyama', universe: 'other', anime: 'Haikyuu!!', quote: 'الفريق يصنع البطل، لا العكس 🏐' },
 ];
 
 const otherAnimeFemales = [
-  { name: 'ساكورا (Sakura)', searchName: 'Sakura Haruno', universe: 'other', quote: 'الشفاء أيضاً نوع من أنواع القوة 🌸' },
-  { name: 'نامي (Nami)', searchName: 'Nami', universe: 'other', quote: 'خريطتي إلى الحرية ترسمها يدي وحدها 🗺️' },
-  { name: 'هيناتا (Hinata)', searchName: 'Hinata Hyuga', universe: 'other', quote: 'الخطوة الصغيرة بثقة أفضل من الوقوف بالمكان 🌸' },
-  { name: 'روكيا (Rukia)', searchName: 'Rukia Kuchiki', universe: 'other', quote: 'الواجب لا يمنع القلب من الشعور ❄️' },
-  { name: 'إيرزا (Erza)', searchName: 'Erza Scarlet', universe: 'other', quote: 'قوّي داخلك أولاً، فالدروع وحدها لا تحمي قلباً هشاً ⚔️' },
-  { name: 'لوسي (Lucy)', searchName: 'Lucy Heartfilia', universe: 'other', quote: 'الصداقة الحقيقية أقوى من أي سحر ✨' },
-  { name: 'ميكاسا (Mikasa)', searchName: 'Mikasa Ackerman', universe: 'other', quote: 'العالم قاسٍ، لكن من أحبهم يستحقون كل قوتي 🗡️' },
-  { name: 'أسونا (Asuna)', searchName: 'Asuna Yuuki', universe: 'other', quote: 'لن أنتظر أن يُنقذني أحد، سأقاتل بنفسي ⚔️' },
-  { name: 'نيزوكو (Nezuko)', searchName: 'Nezuko Kamado', universe: 'other', quote: 'حتى في أحلك الظروف، يبقى الحب سبب صمودي 🌸' },
-  { name: 'أوتشاكو (Ochaco)', searchName: 'Ochaco Uraraka', universe: 'other', quote: 'سأرتقي بجهدي الخاص، خطوة بخطوة 💪' },
-  { name: 'وينري (Winry)', searchName: 'Winry Rockbell', universe: 'other', quote: 'أصلح ما تكسّر، وأمنح الأمل شكلاً جديداً 🔧' },
-  { name: 'كاغومي (Kagome)', searchName: 'Kagome Higurashi', universe: 'other', quote: 'بين عالمين، اخترت أن أقاتل من أجل من أحب ✨' },
+  { name: 'ساكورا (Sakura)', searchName: 'Sakura Haruno', universe: 'other', anime: 'Naruto', quote: 'الشفاء أيضاً نوع من أنواع القوة 🌸' },
+  { name: 'هيناتا (Hinata)', searchName: 'Hinata Hyuga', universe: 'other', anime: 'Naruto', quote: 'الخطوة الصغيرة بثقة أفضل من الوقوف بالمكان 🌸' },
+  { name: 'تسونادي (Tsunade)', searchName: 'Tsunade', universe: 'other', anime: 'Naruto', quote: 'القيادة تعني أن تحمل ألم الجميع 💪' },
+  { name: 'تيماري (Temari)', searchName: 'Temari', universe: 'other', anime: 'Naruto', quote: 'الرياح لا تسأل أحداً أين تهب 🍃' },
+  { name: 'إينو (Ino)', searchName: 'Ino Yamanaka', universe: 'other', anime: 'Naruto', quote: 'الجمال والقوة ليسا ضدين 🌼' },
+  { name: 'كونان (Konan)', searchName: 'Konan', universe: 'other', anime: 'Naruto', quote: 'الورق الهش قد يصبح جناحاً يحملك 📄' },
+  { name: 'نامي (Nami)', searchName: 'Nami', universe: 'other', anime: 'One Piece', quote: 'خريطتي إلى الحرية ترسمها يدي وحدها 🗺️' },
+  { name: 'نيكو روبن (Robin)', searchName: 'Nico Robin', universe: 'other', anime: 'One Piece', quote: 'أردت فقط أن أعيش، وهذا أشجع قرار اتخذته 📚' },
+  { name: 'بوا هانكوك (Hancock)', searchName: 'Boa Hancock', universe: 'other', anime: 'One Piece', quote: 'القوة والجمال معاً سلاح لا يُقاوم 🐍' },
+  { name: 'فيفي (Vivi)', searchName: 'Nefertari Vivi', universe: 'other', anime: 'One Piece', quote: 'سأحمي بلدي حتى آخر نفس 🏜️' },
+  { name: 'بولما (Bulma)', searchName: 'Bulma', universe: 'other', anime: 'Dragon Ball', quote: 'العقل يصنع ما لا تصنعه العضلات 🔧' },
+  { name: 'أندرويد 18', searchName: 'Android 18', universe: 'other', anime: 'Dragon Ball', quote: 'الهدوء أحياناً أقوى من أي انفجار 💠' },
+  { name: 'روكيا (Rukia)', searchName: 'Rukia Kuchiki', universe: 'other', anime: 'Bleach', quote: 'الواجب لا يمنع القلب من الشعور ❄️' },
+  { name: 'أوريهيمي (Orihime)', searchName: 'Orihime Inoue', universe: 'other', anime: 'Bleach', quote: 'الرفض أن أستسلم هو سحري الخاص 🌺' },
+  { name: 'يوروئيتشي (Yoruichi)', searchName: 'Yoruichi Shihouin', universe: 'other', anime: 'Bleach', quote: 'السرعة ليست هرباً، بل خياراً ذكياً 🐈' },
+  { name: 'رانغيكو (Rangiku)', searchName: 'Rangiku Matsumoto', universe: 'other', anime: 'Bleach', quote: 'خلف كل ابتسامة قصة لا يعرفها أحد 🍶' },
+  { name: 'إيرزا (Erza)', searchName: 'Erza Scarlet', universe: 'other', anime: 'Fairy Tail', quote: 'قوّي داخلك أولاً، فالدروع لا تحمي قلباً هشاً ⚔️' },
+  { name: 'لوسي (Lucy)', searchName: 'Lucy Heartfilia', universe: 'other', anime: 'Fairy Tail', quote: 'الصداقة الحقيقية أقوى من أي سحر ✨' },
+  { name: 'جوفيا (Juvia)', searchName: 'Juvia Lockser', universe: 'other', anime: 'Fairy Tail', quote: 'حتى المطر يتوقف حين يجد من يحبه ☔' },
+  { name: 'ويندي (Wendy)', searchName: 'Wendy Marvell', universe: 'other', anime: 'Fairy Tail', quote: 'الصغر في السن لا يعني الصغر في القلب 🌪️' },
+  { name: 'ميراجين (Mirajane)', searchName: 'Mirajane Strauss', universe: 'other', anime: 'Fairy Tail', quote: 'اللطف لا يتعارض مع القوة إطلاقاً 😇' },
+  { name: 'ميكاسا (Mikasa)', searchName: 'Mikasa Ackerman', universe: 'other', anime: 'Attack on Titan', quote: 'العالم قاسٍ، لكن من أحبهم يستحقون كل قوتي 🗡️' },
+  { name: 'هيستوريا (Historia)', searchName: 'Historia Reiss', universe: 'other', anime: 'Attack on Titan', quote: 'اخترت أن أكون نفسي، لا ما يريدونه 👑' },
+  { name: 'ساشا (Sasha)', searchName: 'Sasha Blouse', universe: 'other', anime: 'Attack on Titan', quote: 'حتى في أصعب الأيام، ابحث عن سبب لتبتسم 🥔' },
+  { name: 'هانجي (Hange)', searchName: 'Hange Zoe', universe: 'other', anime: 'Attack on Titan', quote: 'الفضول هو أول خطوة نحو الحرية 🔬' },
+  { name: 'نيزوكو (Nezuko)', searchName: 'Nezuko Kamado', universe: 'other', anime: 'Demon Slayer', quote: 'حتى في أحلك الظروف، يبقى الحب سبب صمودي 🌸' },
+  { name: 'شينوبو (Shinobu)', searchName: 'Shinobu Kocho', universe: 'other', anime: 'Demon Slayer', quote: 'الابتسامة قد تكون أقوى درع 🦋' },
+  { name: 'ميتسوري (Mitsuri)', searchName: 'Mitsuri Kanroji', universe: 'other', anime: 'Demon Slayer', quote: 'الحب طاقة، وأنا أقاتل به 💗' },
+  { name: 'كاناو (Kanao)', searchName: 'Kanao Tsuyuri', universe: 'other', anime: 'Demon Slayer', quote: 'تعلمت أن أختار بقلبي لا بعملة معدنية 🦋' },
+  { name: 'أوتشاكو (Ochaco)', searchName: 'Ochaco Uraraka', universe: 'other', anime: 'My Hero Academia', quote: 'سأرتقي بجهدي الخاص، خطوة بخطوة 💪' },
+  { name: 'موموه ياويوروزو (Momo)', searchName: 'Momo Yaoyorozu', universe: 'other', anime: 'My Hero Academia', quote: 'المعرفة أعظم ما يمكن أن تصنعه 📘' },
+  { name: 'تسويو (Tsuyu)', searchName: 'Tsuyu Asui', universe: 'other', anime: 'My Hero Academia', quote: 'قول الحقيقة بهدوء أفضل من الصراخ 🐸' },
+  { name: 'نوبارا (Nobara)', searchName: 'Nobara Kugisaki', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'أحب نفسي كما أنا، وهذه قوتي 🔨' },
+  { name: 'ماكي (Maki)', searchName: 'Maki Zenin', universe: 'other', anime: 'Jujutsu Kaisen', quote: 'لا أحتاج موهبة، أحتاج إصراراً فقط 👓' },
+  { name: 'وينري (Winry)', searchName: 'Winry Rockbell', universe: 'other', anime: 'Fullmetal Alchemist', quote: 'أصلح ما تكسّر، وأمنح الأمل شكلاً جديداً 🔧' },
+  { name: 'ريزا هوكاي (Riza)', searchName: 'Riza Hawkeye', universe: 'other', anime: 'Fullmetal Alchemist', quote: 'الولاء يعني أن تحمي أحلام من تثق به 🎯' },
+  { name: 'أسونا (Asuna)', searchName: 'Asuna Yuuki', universe: 'other', anime: 'Sword Art Online', quote: 'لن أنتظر أن يُنقذني أحد، سأقاتل بنفسي ⚔️' },
+  { name: 'ريم (Rem)', searchName: 'Rem', universe: 'other', anime: 'Re:Zero', quote: 'من الصفر نبدأ، ومن الحب نكمل 💙' },
+  { name: 'إيميليا (Emilia)', searchName: 'Emilia', universe: 'other', anime: 'Re:Zero', quote: 'العدل يبدأ من أن تنظر للجميع بعين واحدة ❄️' },
+  { name: 'ميغومين (Megumin)', searchName: 'Megumin', universe: 'other', anime: 'KonoSuba', quote: 'الانفجار فن، والفن لا يُشرح! 💥' },
+  { name: 'يور فورجر (Yor)', searchName: 'Yor Forger', universe: 'other', anime: 'Spy x Family', quote: 'أحمي عائلتي بطريقتي الخاصة 🌹' },
+  { name: 'آنيا فورجر (Anya)', searchName: 'Anya Forger', universe: 'other', anime: 'Spy x Family', quote: 'واكوواكو! المغامرة تبدأ الآن 🥜' },
+  { name: 'ماكيما (Makima)', searchName: 'Makima', universe: 'other', anime: 'Chainsaw Man', quote: 'السيطرة تبدأ من فهم ما يريده الآخرون 🔗' },
+  { name: 'باور (Power)', searchName: 'Power', universe: 'other', anime: 'Chainsaw Man', quote: 'أنا الأقوى! ولا تجادلني في ذلك 🩸' },
+  { name: 'زيرو تو (Zero Two)', searchName: 'Zero Two', universe: 'other', anime: 'Darling in the Franxx', quote: 'أريد أن أكون معك حتى النهاية 💗' },
+  { name: 'كوريسو (Kurisu)', searchName: 'Kurisu Makise', universe: 'other', anime: 'Steins;Gate', quote: 'العلم لا يلغي المشاعر، بل يفسرها 🧠' },
+  { name: 'فايوليت (Violet)', searchName: 'Violet Evergarden', universe: 'other', anime: 'Violet Evergarden', quote: 'أتعلم معنى الحب كلمة بكلمة 💌' },
+  { name: 'كاوري (Kaori)', searchName: 'Kaori Miyazono', universe: 'other', anime: 'Shigatsu wa Kimi no Uso', quote: 'اعزف بقلبك ليصل صوتك للجميع 🎻' },
+  { name: 'ماي ساكوراجيما (Mai)', searchName: 'Mai Sakurajima', universe: 'other', anime: 'Seishun Buta Yarou', quote: 'أن يراك أحدهم حقاً هو أجمل شعور 🐰' },
+  { name: 'كاغويا (Kaguya)', searchName: 'Kaguya Shinomiya', universe: 'other', anime: 'Kaguya-sama wa Kokurasetai', quote: 'الحب حرب، والفائز من يعترف أولاً 💭' },
+  { name: 'تشيكا (Chika)', searchName: 'Chika Fujiwara', universe: 'other', anime: 'Kaguya-sama wa Kokurasetai', quote: 'البهجة أيضاً مهارة تحتاج تدريباً 🎶' },
+  { name: 'مارين كيتاغاوا (Marin)', searchName: 'Marin Kitagawa', universe: 'other', anime: 'Sono Bisque Doll wa Koi wo Suru', quote: 'أحب ما أحب بصوت عالٍ ولا أعتذر 🎀' },
+  { name: 'رافتاليا (Raphtalia)', searchName: 'Raphtalia', universe: 'other', anime: 'Tate no Yuusha no Nariagari', quote: 'السيف الذي يثق بحامله لا ينكسر 🗡️' },
+  { name: 'كاغومي (Kagome)', searchName: 'Kagome Higurashi', universe: 'other', anime: 'InuYasha', quote: 'بين عالمين، اخترت أن أقاتل من أجل من أحب ✨' },
+  { name: 'ميساكا ميكوتو (Mikoto)', searchName: 'Mikoto Misaka', universe: 'other', anime: 'Toaru Kagaku no Railgun', quote: 'الكهرباء في يدي، والقرار في قلبي ⚡' },
 ];
 
 // القوائم الكاملة المستخدمة في أوامر .زوج/.زوجة/.انمي
@@ -200,7 +312,8 @@ async function fetchImageSafe(url) {
 
 // يبني ويرسل نتيجة اختيار شخصية (مستخدَم في .زوج / .زوجة / .انمي)
 async function sendCharacterResult(sock, msg, chatId, character, title) {
-  const response = `${title}\n\n⚔️ *${character.name}* 🌸\n\n💬 ${character.quote}`;
+  const animeLine = character.anime ? `\n📺 من أنمي: *${character.anime}*` : '';
+  const response = `${title}\n\n⚔️ *${character.name}* 🌸${animeLine}\n\n💬 ${character.quote}`;
 
   const imageUrl = character.image || (await getCharacterImageUrl(character.searchName));
 
@@ -224,6 +337,46 @@ async function sendCharacterResult(sock, msg, chatId, character, title) {
 }
 
 module.exports = async function funCommand({ sock, msg, args, chatId, senderId, commandKey }) {
+  // 🔎 .شخصية <اسم> — يبحث عن شخصية معيّنة داخل قائمة أستا
+  if (commandKey === 'شخصية' || commandKey === 'character') {
+    const query = args.join(' ').trim();
+    if (!query) {
+      await sock.sendMessage(chatId, {
+        text: `🔎 اكتب اسم الشخصية بعد الأمر.\nمثال: \`.شخصية نويل\` أو \`.شخصية Levi\`\n\n📚 قائمة أستا تحتوي حالياً *${allCharacters.length}* شخصية.`,
+      }, { quoted: msg });
+      return;
+    }
+    const q = query.toLowerCase();
+    const matches = allCharacters.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.searchName.toLowerCase().includes(q)
+    );
+    if (!matches.length) {
+      await sock.sendMessage(chatId, { text: `😅 ما لقيت شخصية باسم "${query}" في قائمة أستا. جرّب اسماً آخر!` }, { quoted: msg });
+      return;
+    }
+    if (matches.length > 1 && matches.length <= 12) {
+      const list = matches.map((c, i) => `${i + 1}. ${c.name}${c.anime ? ` — ${c.anime}` : ''}`).join('\n');
+      await sock.sendMessage(chatId, { text: `🔎 وجدت ${matches.length} نتيجة:\n\n${list}\n\nاكتب اسماً أدق لعرض الصورة.` }, { quoted: msg });
+      return;
+    }
+    await sendCharacterResult(sock, msg, chatId, matches[0], '🔎 *نتيجة البحث*');
+    return;
+  }
+
+  // 📚 .شخصيات — عدد الشخصيات المتاحة وتوزيعها
+  if (commandKey === 'شخصيات' || commandKey === 'characters') {
+    const bc = allCharacters.filter((c) => c.universe === 'blackclover').length;
+    await sock.sendMessage(chatId, {
+      text: `📚 *قائمة شخصيات أستا*\n\n` +
+        `👥 الإجمالي: *${allCharacters.length}* شخصية\n` +
+        `🍀 بلاك كلوفر: *${bc}*\n` +
+        `🌍 أنميات أخرى: *${allCharacters.length - bc}*\n` +
+        `♂️ ذكور: *${maleCharacters.length}* · ♀️ إناث: *${femaleCharacters.length}*\n\n` +
+        `جرّب: \`.انمي\` · \`.زوج\` · \`.زوجة\` · \`.شخصية <اسم>\``,
+    }, { quoted: msg });
+    return;
+  }
+
   if (commandKey === 'anime' || commandKey === 'انمي') {
     const character = getRandom(allCharacters);
     const title = character.universe === 'blackclover' ? '🌸 *مملكة كلوفر*' : '🌸 *عالم الأنمي*';
