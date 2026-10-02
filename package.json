@@ -7,6 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "reconnect": "node scripts/reconnect.js",
+    "sessions": "node scripts/reconnect.js --status",
+    "qr": "node scripts/qr.js",
+    "port": "node scripts/portinfo.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
