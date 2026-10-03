@@ -82,7 +82,12 @@
       .qr img { background: #fff; padding: 10px; border-radius: 12px; max-width: 300px; width: 100%; }
       .hidden { display: none; }
       .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 14px; }
-      @media (max-width: 640px) { th:nth-child(n+4), td:nth-child(n+4) { display: none; } }
+      pre.mono {
+        direction: ltr; text-align: left; background: var(--panel-2); border: 1px solid var(--line);
+        border-radius: 10px; padding: 12px; margin: 8px 0 0; overflow: auto;
+        font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a5b4fc;
+      }
+      @media (max-width: 640px) { th:nth-child(4), td:nth-child(4) { display: none; } }
     </style>
   </head>
   <body>
@@ -134,6 +139,20 @@
           <h2>📱 امسح الرمز للربط / Scan to link</h2>
           <p class="muted">واتساب ← الأجهزة المرتبطة ← ربط جهاز<br />WhatsApp → Linked devices → Link a device</p>
           <div id="qr"></div>
+        </div>
+        <!-- ♻️ إعادة الربط: الحل الوحيد عندما يطرد واتساب البوت (loggedOut)،
+             لأن أمر ".اعادةربط" لا يصل لبوت مقطوع أصلاً -->
+        <div class="card" id="relinkCard">
+          <h2>♻️ إعادة ربط جلسة / Re-link a session</h2>
+          <p class="muted">
+            احذف بيانات الربط المنتهية واطلب رمز QR جديد. تعمل من المتصفح أو من طرفية السيرفر بنفس النتيجة.
+          </p>
+          <div class="row">
+            <input id="relinkSession" placeholder="اسم الجلسة (افتراضياً: default)" />
+            <button class="primary" id="relinkBtn" onclick="relinkSession()">🔄 إعادة الربط</button>
+          </div>
+          <span id="relinkResult" class="muted"></span>
+          <div id="relinkCommands"></div>
         </div>
       </section>
 
@@ -240,6 +259,37 @@
         };
       });
 
+      // ------- حالة الجلسات -------
+      function stateLabel(s) {
+        if (s.connection === 'open') return '🟢 متصل';
+        if (s.connection === 'qr') return '🟡 بانتظار مسح QR';
+        if (s.connection === 'loggedout') return '⛔ خرج من واتساب — يحتاج إعادة ربط';
+        if (s.connection === 'connecting') return '🔵 جارٍ الاتصال…';
+        return '🔴 منقطع';
+      }
+
+      // ♻️ إعادة ربط جلسة: تحذف بيانات الربط المنتهية وتطلب رمز QR جديد.
+      // مهم: عندما يطرد واتساب البوت (loggedOut) لا ينفع أمر ".اعادةربط" لأن البوت
+      // نفسه مقطوع، فهذه هي الطريقة الوحيدة للربط من المتصفح أو عبر `npm run reconnect`.
+      async function relinkSession(name) {
+        const session = typeof name === 'string' ? name.trim() : '';
+        const target = session || $('relinkSession').value.trim();
+        const btn = $('relinkBtn');
+        const result = $('relinkResult');
+        if (!confirm(`إعادة ربط الجلسة «${target || 'default'}»؟\nسيُحذف الربط الحالي ويظهر رمز QR جديد.`)) return;
+        btn.disabled = true;
+        result.textContent = '⏳ جارٍ إعادة الربط…';
+        const r = await api('/api/reconnect', { method: 'POST', body: JSON.stringify({ session: target || undefined }) });
+        btn.disabled = false;
+        if (r?.ok) {
+          result.textContent = '✅ ' + (r.message || 'تم — امسح رمز QR الجديد أعلاه.');
+          $('relinkSession').value = r.session || target;
+          setTimeout(refresh, 1500);
+        } else {
+          result.textContent = '⚠️ ' + (r?.error || 'فشلت إعادة الربط');
+        }
+      }
+
       // ------- التحميل -------
       async function loadStatus() {
         const data = await api('/api/status');
@@ -253,13 +303,20 @@
         $('uptime').textContent = `⏱️ يعمل منذ ${h}س ${m}د · البادئة: ${data.prefix}`;
 
         $('sessions').innerHTML = (data.sessions || []).length
-          ? `<table><tr><th>الجلسة</th><th>الحالة</th><th>الرقم</th><th>متصل منذ</th></tr>` +
+          ? `<table><tr><th>الجلسة</th><th>الحالة</th><th>الرقم</th><th>متصل منذ</th><th></th></tr>` +
             data.sessions.map((s) => `<tr>
               <td>${esc(s.name)}</td>
-              <td>${s.connection === 'open' ? '🟢 متصل' : s.connection === 'qr' ? '🟡 بانتظار مسح QR' : '🔴 منقطع'}</td>
+              <td>${stateLabel(s)}</td>
               <td class="mono">${esc(shortJid((s.user || '').split(':')[0]))}</td>
-              <td>${when(s.connectedAt)}</td></tr>`).join('') + '</table>'
+              <td>${when(s.connectedAt)}</td>
+              <td><button class="ghost" onclick="relinkSession('${esc(s.name)}')">♻️ إعادة ربط</button></td></tr>`).join('') + '</table>'
           : empty('لا توجد جلسات بعد.');
+
+        // 📋 أوامر الطرفية المكافئة (للسيرفر العام الذي لا يُفتح من المتصفح)
+        $('relinkCommands').innerHTML = data.recovery
+          ? `<p class="muted" style="margin-top:12px">أو من طرفية السيرفر مباشرةً:</p>
+             <pre class="mono">${data.recovery.commands.map(esc).join('\n')}</pre>`
+          : '';
 
         const withQr = (data.sessions || []).find((s) => s.qrImage || s.qr);
         $('qrCard').classList.toggle('hidden', !withQr);

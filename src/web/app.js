@@ -12,6 +12,7 @@
 
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -121,6 +122,108 @@ async function qrToDataUrl(qrText) {
   }
 }
 
+// 🌐 عناوين IPv4 الخاصة بالسيرفر (لطباعة رابط يمكن فتحه من أي جهاز، لا من localhost فقط)
+function getServerIps() {
+  const ips = [];
+  const interfaces = os.networkInterfaces();
+  for (const list of Object.values(interfaces)) {
+    for (const item of list || []) {
+      if (item.family === 'IPv4' && !item.internal) ips.push(item.address);
+    }
+  }
+  return ips;
+}
+
+// المنفذ الذي ارتبطت به اللوحة فعلياً (قد يختلف عن PORT لو كان المنفذ مشغولاً)
+let dashboardPort = null;
+function getDashboardPort() {
+  return dashboardPort;
+}
+
+// 📣 طباعة كل الطرق الممكنة لفتح اللوحة — لأن السيرفر غالباً عام (VPS/حاوية) بلا متصفح
+function announceDashboard(port) {
+  const line = '─'.repeat(58);
+  const withToken = (base) => `${base}/?token=${DASHBOARD_TOKEN}`;
+  const publicUrl = (process.env.DASHBOARD_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+
+  logger.info(line);
+  logger.info('🖥️  لوحة تحكم أستا جاهزة / Asta dashboard is ready');
+  logger.info(`🔗  من نفس السيرفر / Local:   ${withToken(`http://localhost:${port}`)}`);
+  for (const ip of getServerIps()) {
+    logger.info(`🌐  من أي جهاز على الشبكة / Network: ${withToken(`http://${ip}:${port}`)}`);
+  }
+  if (publicUrl) {
+    logger.info(`☁️  الرابط العام / Public:   ${withToken(publicUrl)}`);
+  } else {
+    logger.info('☁️  للرابط العام ضع DASHBOARD_PUBLIC_URL=https://نطاقك في ملف .env');
+  }
+  logger.info(`🔑  رمز الوصول / Access token: ${DASHBOARD_TOKEN}`);
+  logger.info(`🩺  فحص سريع من طرفية السيرفر: curl -s http://localhost:${port}/health`);
+  logger.info(
+    `💡  السيرفر عام ولا تملك متصفحاً عليه؟ نفّذ من جهازك: ssh -L ${port}:localhost:${port} user@SERVER_IP ` +
+      `ثم افتح ${withToken(`http://localhost:${port}`)}`
+  );
+  logger.info(`💡  لو لم يفتح الرابط من الخارج: افتح المنفذ في الجدار الناري (ufw allow ${port}/tcp) ومن لوحة مزوّد الاستضافة.`);
+  if (!process.env.DASHBOARD_TOKEN) {
+    logger.info('ℹ️  الرمز عشوائي ويتغيّر عند كل تشغيل. ثبّته بوضع DASHBOARD_TOKEN في ملف .env');
+    logger.info('ℹ️  Token is random per run. Set DASHBOARD_TOKEN in .env to keep it fixed.');
+  }
+  logger.info(line);
+}
+
+// 🔁 تشغيل اللوحة مع البحث عن منفذ بديل لو كان المنفذ المطلوب محجوزاً (EADDRINUSE)
+function listenWithFallback(server, firstPort, maxTries = 10) {
+  let tries = 0;
+  let cancelled = false;
+
+  // لو أُوقف الخادم (إغلاق نظيف/اختبارات) لا نعيد المحاولة على منفذ آخر
+  server.once('close', () => {
+    cancelled = true;
+  });
+
+  const attempt = (port) => {
+    if (cancelled) return;
+
+    const onError = (err) => {
+      server.removeListener('listening', onListening);
+
+      if (err.code !== 'EADDRINUSE') {
+        logger.error(`تعذر تشغيل لوحة التحكم على المنفذ ${port}: ${err.message}`);
+        return;
+      }
+
+      logger.error(`تعذر تشغيل لوحة التحكم على المنفذ ${port}: ${err.message}`);
+      logger.warn(`المنفذ ${port} محجوز — غالباً هناك نسخة قديمة من البوت ما زالت تعمل على السيرفر.`);
+      logger.warn(`لمعرفة البرنامج الذي يحجزه نفّذ:  npm run port   (أو: ss -ltnp | grep :${port} / lsof -i :${port})`);
+      logger.warn(`لإيقاف العملية القديمة:  kill <PID>   ولتثبيت منفذ آخر ضع PORT=3000 في ملف .env`);
+
+      if (cancelled) return;
+
+      if (tries < maxTries) {
+        tries += 1;
+        logger.info(`🔁 سأجرّب المنفذ التالي: ${port + 1} (محاولة ${tries}/${maxTries})`);
+        setTimeout(() => attempt(port + 1), 300);
+      } else {
+        logger.error('🛑 فشلت كل المحاولات — لوحة التحكم معطّلة. حرّر المنفذ أو غيّر PORT ثم أعد التشغيل.');
+      }
+    };
+
+    const onListening = () => {
+      server.removeListener('error', onError);
+      server.on('error', (err) => logger.error('خطأ في خادم لوحة التحكم: ' + err.message));
+      dashboardPort = port;
+      announceDashboard(port);
+    };
+
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, '0.0.0.0');
+  };
+
+  attempt(firstPort);
+}
+
+
 function startProfessionalDashboard() {
   const port = Number(process.env.PORT || process.env.DASHBOARD_PORT || 3000);
   const htmlPath = path.join(__dirname, 'index.html');
@@ -171,6 +274,7 @@ function startProfessionalDashboard() {
     try {
       // ---------------- الحالة والاتصال ----------------
       if (pathname === '/api/status') {
+        const sessionManager = require('../sessionManager');
         const sessions = await Promise.all(
           getSessions().map(async (s) => ({
             ...s,
@@ -184,7 +288,40 @@ function startProfessionalDashboard() {
           features: config.features,
           maintenance: getGlobalSetting('maintenance_mode') === '1',
           uptimeSeconds: Math.floor(process.uptime()),
+          dashboardPort: getDashboardPort(),
+          // 📋 أوامر إعادة الربط الجاهزة (تظهر في اللوحة عند انقطاع الجلسة)
+          recovery: sessionManager.recoveryInstructions(sessionManager.getConfiguredSessionNames()[0]),
         });
+      }
+
+      // ---------------- إعادة ربط جلسة واتساب من اللوحة ----------------
+      // ♻️ هذه هي النقطة التي تحل مشكلة "Logged out" بدون الحاجة لأمر في واتساب،
+      // لأن البوت المقطوع لا يستطيع استقبال أمر .اعادةربط أصلاً.
+      if (pathname === '/api/reconnect' && req.method === 'POST') {
+        const body = await readBody(req);
+        const sessionManager = require('../sessionManager');
+        const configured = sessionManager.getConfiguredSessionNames();
+        const requested = body.session ? String(body.session) : configured[0] || 'default';
+        const name = sessionManager.normalizeSessionName(requested);
+
+        if (!configured.includes(name)) {
+          return json(res, { error: `جلسة غير معروفة: ${name}`, sessions: configured }, 400);
+        }
+
+        try {
+          await sessionManager.resetSession(name);
+          const info = sessionManager.recoveryInstructions(name);
+          logger.info(`♻️ إعادة ربط الجلسة ${name} من لوحة التحكم.`);
+          return json(res, {
+            ok: true,
+            session: name,
+            sessionDir: info.sessionDir,
+            message: `تم حذف بيانات الجلسة ${name} — امسح رمز QR الجديد من تبويب "الاتصال / QR".`,
+          });
+        } catch (err) {
+          logger.error(`فشلت إعادة ربط الجلسة ${name}: ${err.message}`);
+          return json(res, { error: `فشلت إعادة الربط: ${err.message}` }, 500);
+        }
       }
 
       if (pathname === '/api/stats') {
@@ -315,25 +452,13 @@ function startProfessionalDashboard() {
     }
   });
 
-  server.on('error', (err) => {
-    logger.error(`تعذر تشغيل لوحة التحكم على المنفذ ${port}: ${err.message}`);
-  });
-
-  server.listen(port, '0.0.0.0', () => {
-    const line = '─'.repeat(58);
-    logger.info(line);
-    logger.info('🖥️  لوحة تحكم أستا جاهزة / Asta dashboard is ready');
-    logger.info(`🔗  الرابط المحلي / Local URL: http://localhost:${port}/?token=${DASHBOARD_TOKEN}`);
-    logger.info(`🔑  رمز الوصول / Access token: ${DASHBOARD_TOKEN}`);
-    if (!process.env.DASHBOARD_TOKEN) {
-      logger.info('ℹ️  الرمز عشوائي ويتغيّر عند كل تشغيل. ثبّته بوضع DASHBOARD_TOKEN في ملف .env');
-      logger.info('ℹ️  Token is random per run. Set DASHBOARD_TOKEN in .env to keep it fixed.');
-    }
-    logger.info(line);
-  });
+  // 🔁 لو كان المنفذ محجوزاً (EADDRINUSE) نجرّب المنافذ التالية تلقائياً
+  // حتى لا تبقى اللوحة معطّلة على سيرفر عام لا يستطيع المستخدم رؤيته.
+  listenWithFallback(server, port);
 
   return server;
 }
 
 module.exports = startProfessionalDashboard;
 module.exports.DASHBOARD_TOKEN = DASHBOARD_TOKEN;
+module.exports.getDashboardPort = getDashboardPort;
