@@ -1,8 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { saveMessage, saveLastSeen, getCustomReplies, getWelcomeMessage, getGlobalSetting, getChatSettings, getMessage, getCustomReactions, isBanned } = require('../database/db');
-const { createWelcomeCard } = require('../utils/welcomeCard');
+const { saveMessage, saveLastSeen, getCustomReplies, getGlobalSetting, getChatSettings, getCustomReactions, isBanned } = require('../database/db');
 const config = require('../config');
 const logger = require('../utils/logger');
 const responses = require('../utils/responses');
@@ -11,161 +10,117 @@ const { handleEditFromUpsert } = require('./editHandler');
 const { handleRevokeFromUpsert } = require('./deleteHandler');
 const { isOwnerId } = require('./commandHandler');
 const { checkActiveAnswer } = require('../commands/games');
+const { extractText, getRealMessageType } = require('../utils/messageContent');
+const { containsKeyword, exactMatch, normalizeArabic } = require('../utils/matcher');
+const { awardForMessage } = require('../services/points');
+const { jidUser } = require('../utils/permissions');
+
 // دالة التحقق من إيقاف البوت في مجموعة معينة (safe import)
 let isBotDisabled;
 try { isBotDisabled = require('../commands/utils').isBotDisabled; }
 catch (e) { isBotDisabled = () => false; }
 
-// الردود الآلية المشتركة تُقرأ الآن من responses.json (سهل التعديل بدون لمس الكود)
+// الردود الآلية المشتركة تُقرأ من responses.json (سهل التعديل بدون لمس الكود)
 function getGreetings() {
   const g = responses.all().greetings || {};
   return { EXACT_REPLIES: g.exact || {}, CONTAINS_REPLIES: g.contains || {} };
 }
 
-function extractText(message) {
-  return (
-    message.conversation ||
-    message.extendedTextMessage?.text ||
-    message.imageMessage?.caption ||
-    message.videoMessage?.caption ||
-    ''
-  );
-}
+const LINK_REGEX = /(https?:\/\/|www\.|chat\.whatsapp\.com\/|wa\.me\/|t\.me\/)\S+/i;
+const HELP_WORDS = ['اوامر', 'الاوامر', 'أوامر', 'الأوامر', 'مساعدة', 'مساعده', 'قائمة الاوامر', 'menu', 'help', 'commands'];
 
 function isGroupChat(chatId) {
   return chatId?.endsWith('@g.us');
 }
 
-// ⚠️ إصلاح: واتساب/Baileys أحياناً يضع "messageContextInfo" (أو مفاتيح تعريفية
-// أخرى لا تمثل محتوى فعلياً) كأول مفتاح داخل msg.message، فكان
-// Object.keys(msg.message)[0] يرجع "messageContextInfo" بدل "imageMessage"
-// الفعلي، فتفشل معرفة نوع الرسالة وبالتالي لا يتم تنزيل/حفظ الصور والوسائط.
-// هذه الدالة تتجاهل المفاتيح غير المهمة وتعيد أول نوع محتوى حقيقي.
-const NON_CONTENT_KEYS = new Set([
-  'messageContextInfo',
-  'senderKeyDistributionMessage',
-  'deviceSentMessage',
-]);
-
-function getRealMessageType(message) {
-  const keys = Object.keys(message || {}).filter((k) => !NON_CONTENT_KEYS.has(k));
-  return keys[0];
+// ⚠️ منع معالجة الرسالة مرتين (تكرار الحدث بعد إعادة الاتصال يسبب تنفيذ الأمر مرتين)
+const seenMessages = new Map(); // key -> timestamp
+const SEEN_TTL_MS = 10 * 60 * 1000;
+function alreadySeen(key) {
+  const now = Date.now();
+  if (seenMessages.size > 5000) {
+    for (const [k, t] of seenMessages) if (now - t > SEEN_TTL_MS) seenMessages.delete(k);
+  }
+  if (seenMessages.has(key)) return true;
+  seenMessages.set(key, now);
+  return false;
 }
 
+// ⚠️ إصلاح: كانت المطابقة includes داخل النص، فيُطابق "كم" داخل "كمامة".
+// الآن تطابق كلمة كاملة، وعند تعدد المطابقات تُفضَّل الكلمة الأطول (الأدق).
 function resolveCustomReply(text, chatId) {
   const replies = getCustomReplies(isGroupChat(chatId) ? 'group' : 'private');
-  const fallback = getCustomReplies('all');
-  const combined = [...fallback, ...replies];
-
-  for (const item of combined) {
-    if (text.toLowerCase().includes(item.keyword.toLowerCase())) {
-      return item.reply;
-    }
-  }
-
-  return null;
+  const matches = replies
+    .filter((item) => containsKeyword(text, item.keyword))
+    .sort((a, b) => normalizeArabic(b.keyword).length - normalizeArabic(a.keyword).length);
+  return matches[0]?.reply || null;
 }
 
-async function handleWelcomeMessage(msg, sock, chatId) {
-  const settings = getChatSettings(chatId);
-  if (settings.welcome_enabled !== 1) return;
-
-  const stubType = msg.message?.messageStubType;
-  const participant = msg.message?.messageStubParameters?.[0];
-
-  if ((stubType === 27 || stubType === 28) && participant) {
-    try {
-      const userName = participant.split('@')[0];
-      let pfp;
-      try {
-        pfp = await sock.profilePictureUrl(participant, 'image');
-      } catch {
-        pfp = null;
-      }
-
-      const caption = `🍀 أهلاً وسهلاً بك يا @${userName} في مجموعة أستا ساما!\nنأمل ألا تختفي إرادتك للمشاركة! ⚔️`;
-
-      const buffer = await createWelcomeCard(userName, pfp);
-      await sock.sendMessage(chatId, { image: buffer, caption, mentions: [participant] });
-    } catch (err) {
-      // حتى لو فشلت بطاقة Canvas (غير مثبتة/خطأ في الرسم) نرحّب نصياً على الأقل
-      logger.warn('Failed to send canvas welcome card, falling back to text: ' + err.message);
-      try {
-        const userName = participant.split('@')[0];
-        await sock.sendMessage(chatId, {
-          text: `🍀 أهلاً وسهلاً بك يا @${userName} في مجموعة أستا ساما!\nنأمل ألا تختفي إرادتك للمشاركة! ⚔️`,
-          mentions: [participant],
-        });
-      } catch (fallbackErr) {
-        logger.warn('Failed to send fallback welcome message: ' + fallbackErr.message);
-      }
-    }
-  }
-}
-
-// تنفيذ الأوامر تلقائياً إذا كانت مُرسلة من رقم البوت نفسه (هاتفك الأساسي المربوط بالجلسة)
-async function handleSelfCommand(msg, sock) {
+// تنفيذ الأوامر تلقائياً إذا كانت مُرسلة من رقم البوت نفسه (هاتفك المربوط)
+async function handleSelfCommand(msg, sock, text) {
   if (!config.features.selfCommandExecution) return;
   try {
-    if (!msg.message) return;
-    const chatId = msg.key.remoteJid;
-    const text = extractText(msg.message);
     if (!text || !text.startsWith(config.prefix)) return;
-
-    const rawSelfId = sock.user?.id || '';
-    const selfNumber = rawSelfId.split(':')[0].split('@')[0];
+    const chatId = msg.key.remoteJid;
+    const selfNumber = jidUser(sock.user?.id || '');
     const senderId = selfNumber ? `${selfNumber}@s.whatsapp.net` : chatId;
-
     await handleCommand({ sock, msg, text, chatId, senderId });
   } catch (err) {
     logger.error('خطأ أثناء تنفيذ أمر ذاتي (من رقم البوت): ' + err.message);
   }
 }
 
-// ⚠️ إصلاح جوهري: الحدث "messages.upsert" في Baileys يُرسل معه حقل "type"
-// يكون "notify" للرسائل الحقيقية الجديدة اللحظية، أو "append"/"replace" عند
-// إعادة مزامنة السجل القديم (history sync) بعد كل اتصال/إعادة اتصال. كان
-// الكود يتجاهل هذا الحقل تماماً ويعالج كل شيء بما فيه رسائل قديمة معاد
-// إرسالها من المزامنة - وهذه الرسائل القديمة غالباً تملك مفاتيح تشفير وسائط
-// (mediaKey) منتهية أو غير قابلة للاشتقاق، فتفشل محاولة تحميل صورها بخطأ:
-// "Cannot derive from empty media key" - وهذا بالضبط ما ظهر في السجلات عند
-// كل إعادة تشغيل. تجاهل رسائل المزامنة يحل هذا نهائياً، ويمنع أيضاً معالجة
-// أوامر/ردود قديمة بالخطأ بعد كل إعادة اتصال.
+// حفظ رسائل الرقم نفسه (لازم للتعديل والحذف لاحقاً)، بدون تنزيل الوسائط
+function saveOwnMessage(msg, sock, text, msgType) {
+  const selfNumber = jidUser(sock.user?.id || '');
+  const chatId = msg.key.remoteJid;
+  saveMessage({
+    id: msg.key.id,
+    chat_id: chatId,
+    sender_id: selfNumber ? `${selfNumber}@s.whatsapp.net` : chatId,
+    sender_name: msg.pushName || 'أنا',
+    message_type: msgType || null,
+    text_content: text || null,
+    media_path: null,
+    timestamp: Number(msg.messageTimestamp) ? Number(msg.messageTimestamp) * 1000 : Date.now(),
+  });
+}
+
+// ⚠️ إصلاح جوهري: الحدث "messages.upsert" يحمل "type": "notify" للرسائل الحقيقية
+// الجديدة، و"append"/"replace" لمزامنة السجل القديم بعد الاتصال. نتجاهل المزامنة حتى لا
+// نعالج أوامر قديمة أو وسائط منتهية الصلاحية.
 async function handleIncomingMessages({ messages, type }, sock) {
-  if (type && type !== 'notify') {
-    return; // رسائل مزامنة سجل قديم - ليست رسائل جديدة فعلية، نتجاهلها
-  }
+  if (type && type !== 'notify') return;
+
   for (const msg of messages) {
     try {
-      // تخطي الرسائل الفارغة
-      if (!msg.message) continue;
+      if (!msg.message) continue; // رسائل النظام لا تهمنا هنا (الترحيب يُعالج بحدث مستقل)
+
+      const chatIdRaw = msg.key?.remoteJid;
+      if (!chatIdRaw || chatIdRaw === 'status@broadcast') continue; // تجاهل الحالات (Status)
+
+      if (alreadySeen(`${chatIdRaw}|${msg.key.id}|${msg.key.fromMe ? 1 : 0}`)) continue;
 
       // ✏️ رصد تعديل الرسائل أولاً — حتى التعديلات الصادرة من رقم البوت نفسه
-      // (كانت تُبتلع سابقاً داخل فرع fromMe فلا يظهر أي تنبيه عنها إطلاقاً)
       if (await handleEditFromUpsert(msg, sock)) continue;
 
-      // 🗑️ رصد الحذف الوارد عبر upsert (بعض الأجهزة ترسله هكذا وليس عبر update)
+      // 🗑️ رصد الحذف الوارد عبر upsert
       if (await handleRevokeFromUpsert(msg, sock)) continue;
 
-      // رسائل مرسلة من رقم البوت نفسه (هاتفك المربوط) -> نفّذ الأوامر تلقائياً كمالك، وتخطَّ باقي المعالجة
-      if (msg.key.fromMe) {
-        await handleSelfCommand(msg, sock);
-        continue;
-      }
-
-      const chatId = msg.key.remoteJid;
-      // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
-      const senderId = msg.key.participant || msg.key.remoteJid;
-
+      const chatId = chatIdRaw;
       const text = extractText(msg.message);
       const msgType = getRealMessageType(msg.message);
 
-      // معالجة أحداث الانضمام للمجموعات (ترحيب تلقائي)
-      const stubType = msg.message?.messageStubType;
-      if (stubType === 27 || stubType === 28) {
-        await handleWelcomeMessage(msg, sock, chatId);
-        continue; // هذا حدث نظامي، ليس رسالة عادية
+      // 📤 رسائل الرقم نفسه: نحفظها (للتعديل/الحذف) ثم ننفّذ الأوامر إن وُجدت
+      if (msg.key.fromMe) {
+        saveOwnMessage(msg, sock, text, msgType);
+        await handleSelfCommand(msg, sock, text);
+        continue;
       }
+
+      // في المجموعات: المرسل هو participant، وإلا هو الـ remoteJid نفسه
+      const senderId = msg.key.participant || msg.key.remoteJid;
+      const isGroup = isGroupChat(chatId);
 
       // تخطي المعالجة إذا كان البوت مُوقفاً في هذه المحادثة
       if (isBotDisabled(chatId)) continue;
@@ -179,27 +134,23 @@ async function handleIncomingMessages({ messages, type }, sock) {
         continue;
       }
 
-      // 🚫 المحظورون: نتجاهل رسائلهم تماماً في الردود الآلية والألعاب (الأوامر تُرفض داخل commandHandler)
+      // 🚫 المحظورون: نتجاهل رسائلهم في الردود الآلية والألعاب (الأوامر تُرفض داخل commandHandler)
       const senderBanned = !isOwner && isBanned(senderId);
 
-      // 🛡️ حماية ضد الروابط (Anti-Link)
-      if (chatId.endsWith('@g.us') && !msg.key.fromMe) {
+      // 🛡️ حماية ضد الروابط (Anti-Link) — في المجموعات فقط
+      if (isGroup && !isOwner) {
         const chatSettings = getChatSettings(chatId);
-        if (chatSettings.anti_link === 1 && !isOwner) {
-          const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b/gi;
-          if (linkRegex.test(text)) {
-            await sock.sendMessage(chatId, { text: '⚔️ أستا لن يسمح بنشر سحر الأعداء في هذا الجروب! روابط ممنوعة!' }, { quoted: msg });
-            try { await sock.sendMessage(chatId, { delete: msg.key }); } catch (e) { }
-            continue; // Stop processing this message
-          }
+        if (chatSettings.anti_link === 1 && text && LINK_REGEX.test(text)) {
+          await sock.sendMessage(chatId, { text: '⚔️ أستا لن يسمح بنشر سحر الأعداء في هذا الجروب! روابط ممنوعة!' }, { quoted: msg });
+          try { await sock.sendMessage(chatId, { delete: msg.key }); } catch (e) { /* قد لا يملك البوت صلاحية الحذف */ }
+          continue;
         }
       }
 
-      // التفاعلات المخصصة (Auto-Reactions)
+      // التفاعلات المخصصة (Auto-Reactions) - كلمة كاملة
       if (text && !senderBanned) {
-        const reactions = getCustomReactions();
-        for (const rx of reactions) {
-          if (text.includes(rx.keyword)) {
+        for (const rx of getCustomReactions()) {
+          if (containsKeyword(text, rx.keyword)) {
             await sock.sendMessage(chatId, { react: { text: rx.emoji, key: msg.key } });
           }
         }
@@ -209,8 +160,7 @@ async function handleIncomingMessages({ messages, type }, sock) {
       let mediaPath = null;
       if (['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'].includes(msgType)) {
         try {
-          // ⚠️ إصلاح: بدون تمرير { logger, reuploadRequest } يفشل Baileys بصمت
-          // في تنزيل الوسائط التي تحتاج إعادة طلب رابط (منتهية الصلاحية/معاد إرسالها)
+          // ⚠️ بدون تمرير { logger, reuploadRequest } يفشل Baileys بصمت مع الوسائط التي تحتاج إعادة طلب رابط
           const buffer = await downloadMediaMessage(
             msg,
             'buffer',
@@ -227,6 +177,8 @@ async function handleIncomingMessages({ messages, type }, sock) {
         }
       }
 
+      const isCommand = !!text && text.startsWith(config.prefix);
+
       // حفظ الرسالة وآخر ظهور
       saveMessage({
         id: msg.key.id,
@@ -238,61 +190,59 @@ async function handleIncomingMessages({ messages, type }, sock) {
         media_path: mediaPath,
         timestamp: Date.now(),
       });
-
       saveLastSeen({ chatId, senderId });
 
-      const chatType = chatId.endsWith('@g.us') ? '[Group]' : '[Private]';
+      const chatType = isGroup ? '[Group]' : '[Private]';
       logger.info(`${chatType} ${msg.pushName || senderId}: ${text || '<media>'}`);
 
+      // ⭐ النقاط: كل رسالة عادية في المجموعة (الأوامر لا تُحتسب)
+      if (isGroup && !senderBanned && !isCommand) {
+        try {
+          const hasMedia = !!msgType && !['conversation', 'extendedTextMessage'].includes(msgType);
+          awardForMessage({ chatId, senderId, senderName: msg.pushName, hasMedia });
+        } catch (err) {
+          logger.warn('تعذر تحديث النقاط: ' + err.message);
+        }
+      }
+
       // معالجة الأوامر في المجموعات والخاص على حدٍّ سواء
-      if (text && text.startsWith(config.prefix)) {
+      if (isCommand) {
         await handleCommand({ sock, msg, text, chatId, senderId });
         continue;
       }
 
-      // 📖 كلمات مفتاحية تفتح قائمة الأوامر بدون بادئة — لأن كثيراً من
-      // المستخدمين لا يعرفون أصلاً أن هناك بادئة أوامر.
-      if (text && !senderBanned) {
-        const helpWords = ['اوامر', 'الاوامر', 'أوامر', 'الأوامر', 'مساعدة', 'مساعده', 'قائمة الاوامر', 'menu', 'help', 'commands'];
-        if (helpWords.includes(text.trim().toLowerCase())) {
-          await handleCommand({ sock, msg, text: `${config.prefix}مساعدة`, chatId, senderId });
-          continue;
-        }
+      // 📖 كلمات مفتاحية تفتح قائمة الأوامر بدون بادئة
+      if (text && !senderBanned && HELP_WORDS.includes(text.trim().toLowerCase())) {
+        await handleCommand({ sock, msg, text: `${config.prefix}مساعدة`, chatId, senderId });
+        continue;
       }
 
-      // 🎮 فعاليات الأنمي التلقائية (تفكيك/تخمين): يلتقط البوت الإجابة الصحيحة مباشرة من الدردشة بدون أمر
+      // 🎮 فعاليات الأنمي التلقائية (تفكيك/تخمين): يلتقط الإجابة مباشرة من الدردشة
       if (text && !senderBanned) {
         const handled = await checkActiveAnswer({ sock, msg, chatId, senderId, text });
         if (handled) continue;
       }
 
-      // الردود الآلية (تعمل في الخاص والمجموعات)
-      if (config.features.autoReply && !senderBanned) {
+      // الردود الآلية (تعمل في الخاص والمجموعات) — كلمات كاملة فقط
+      if (config.features.autoReply && !senderBanned && text) {
         const customReply = resolveCustomReply(text, chatId);
         if (customReply) {
           await sock.sendMessage(chatId, { text: customReply }, { quoted: msg });
           continue;
         }
 
-        const trimmedText = text.trim();
         const { EXACT_REPLIES, CONTAINS_REPLIES } = getGreetings();
-
-        // أولاً: التحقق من المطابقة التامة (Exact Match)
-        if (EXACT_REPLIES[trimmedText]) {
-          await sock.sendMessage(chatId, { text: EXACT_REPLIES[trimmedText] }, { quoted: msg });
+        const exactKey = Object.keys(EXACT_REPLIES).find((k) => exactMatch(text, k));
+        if (exactKey) {
+          await sock.sendMessage(chatId, { text: EXACT_REPLIES[exactKey] }, { quoted: msg });
           continue;
         }
 
-        // ثانياً: التحقق من المطابقة الجزئية (Contains Match)
-        let replied = false;
-        for (const [keyword, reply] of Object.entries(CONTAINS_REPLIES)) {
-          if (text.includes(keyword)) {
-            await sock.sendMessage(chatId, { text: reply }, { quoted: msg });
-            replied = true;
-            break;
-          }
+        const containsKey = Object.keys(CONTAINS_REPLIES).find((k) => containsKeyword(text, k));
+        if (containsKey) {
+          await sock.sendMessage(chatId, { text: CONTAINS_REPLIES[containsKey] }, { quoted: msg });
+          continue;
         }
-        if (replied) continue;
       }
     } catch (err) {
       logger.error('Error handling message: ' + err.message);
@@ -301,3 +251,5 @@ async function handleIncomingMessages({ messages, type }, sock) {
 }
 
 module.exports = handleIncomingMessages;
+module.exports.handleIncomingMessages = handleIncomingMessages;
+module.exports.resolveCustomReply = resolveCustomReply;

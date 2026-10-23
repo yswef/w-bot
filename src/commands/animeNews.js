@@ -1,176 +1,174 @@
 // =============================================
-// 📺 أوامر الأنمي المتقدمة - قائمة الأنميات الحالية / النشرة اليومية
-// يستخدم Jikan API (مجاني بدون مفتاح)
+// 📺 أوامر الأنمي: الموسم، البحث، المواعيد، الأخبار، النشرة اليومية
 // =============================================
+// ⚠️ تم نقل المصدر من Jikan (توقف نهائياً في 1 أكتوبر 2026) إلى AniList،
+// والأخبار من RSS (ANN / MyAnimeList / Crunchyroll).
 
-const https = require('https');
-const { db } = require('../database/db');
 const config = require('../config');
+const responses = require('../utils/responses');
+const db = require('../database/db');
+const { isAdminJid } = require('../utils/permissions');
+const anilist = require('../services/anilist');
+const animeFeed = require('../services/animeFeed');
 const logger = require('../utils/logger');
 
-// دالة مساعدة لجلب البيانات (مع مهلة زمنية، متابعة التحويلات، وإعادة محاولة عند التقييد 429)
-function fetchJSONOnce(url, timeoutMs = 10000) {
-    return new Promise((resolve, reject) => {
-        const req = https.get(url, { headers: { 'User-Agent': 'AstaBot/1.0', Accept: 'application/json' } }, res => {
-            // متابعة إعادة التوجيه (redirects)
-            if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
-                res.resume();
-                return resolve(fetchJSONOnce(res.headers.location, timeoutMs));
-            }
+const SEASON_AR = { WINTER: 'الشتاء', SPRING: 'الربيع', SUMMER: 'الصيف', FALL: 'الخريف' };
+const STATUS_AR = {
+  FINISHED: 'منتهٍ', RELEASING: 'يُعرض الآن', NOT_YET_RELEASED: 'لم يُعرض بعد',
+  CANCELLED: 'ملغى', HIATUS: 'متوقف مؤقتاً',
+};
 
-            let data = '';
-            res.on('data', chunk => (data += chunk));
-            res.on('end', () => {
-                if (res.statusCode === 429) {
-                    const err = new Error('Rate limited (429)');
-                    err.statusCode = 429;
-                    return reject(err);
-                }
-                if ([502, 503, 504].includes(res.statusCode)) {
-                    const err = new Error(`Upstream unavailable (${res.statusCode})`);
-                    err.statusCode = res.statusCode;
-                    return reject(err);
-                }
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    return reject(new Error(`HTTP ${res.statusCode}`));
-                }
-                try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(new Error('استجابة غير صالحة (JSON parse error): ' + e.message));
-                }
-            });
-        });
-        req.on('error', reject);
-        req.setTimeout(timeoutMs, () => {
-            req.destroy(new Error('انتهت مهلة الاتصال (timeout)'));
-        });
-    });
-}
-
-async function fetchJSON(url, retries = 2) {
-    try {
-        return await fetchJSONOnce(url);
-    } catch (err) {
-        // ⚠️ إصلاح: كان يعيد المحاولة فقط عند 429 (Rate Limit)، لكن Jikan
-        // كثيراً ما يرجع 502/503/504 (السيرفر مزدحم/بطيء) خصوصاً عند
-        // الاستضافة على منصات مثل Railway. الآن نعيد المحاولة أيضاً في هذه
-        // الحالات مع انتظار قصير قبل كل محاولة.
-        const retryableCodes = [429, 502, 503, 504];
-        if (retries > 0 && retryableCodes.includes(err.statusCode)) {
-            await new Promise(r => setTimeout(r, 1500));
-            return fetchJSON(url, retries - 1);
-        }
-        throw err;
-    }
-}
-
-// جدول قاعدة بيانات المشتركين في النشرة اليومية للأنمي
-db.exec(`
-  CREATE TABLE IF NOT EXISTS anime_newsletter (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id TEXT NOT NULL UNIQUE,
-    added_by TEXT,
-    active INTEGER DEFAULT 1
-  )
-`);
-
-function getNewsletterSubscribers() {
-    return db.prepare(`SELECT * FROM anime_newsletter WHERE active = 1`).all();
-}
-
-function subscribeToNewsletter(chatId, addedBy) {
-    return db.prepare(
-        `INSERT OR REPLACE INTO anime_newsletter (chat_id, added_by, active) VALUES (?, ?, 1)`
-    ).run(chatId, addedBy);
-}
-
-function unsubscribeFromNewsletter(chatId) {
-    return db.prepare(`DELETE FROM anime_newsletter WHERE chat_id = ?`).run(chatId);
-}
-
-// التحقق من صلاحية الأدمن
 function isAdminUser(senderId) {
-    const admins = config.adminNumbers || [config.ownerNumber];
-    return admins.some(a => senderId.replace(/\D/g, '').includes(a));
+  return isAdminJid(senderId);
+}
+
+function fmtDate(unixSec) {
+  return new Intl.DateTimeFormat('ar-EG', {
+    timeZone: config.timezone, weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(unixSec * 1000));
+}
+
+function clip(s, n) {
+  const t = String(s || '');
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
+}
+
+async function reply(sock, chatId, msg, text, extra = {}) {
+  return sock.sendMessage(chatId, { text, ...extra }, msg ? { quoted: msg } : undefined);
+}
+
+async function showSeason(sock, chatId, msg) {
+  const { season, seasonYear, items } = await anilist.seasonAnime(10);
+  if (!items.length) return reply(sock, chatId, msg, '📭 لا توجد نتائج للموسم الحالي الآن.');
+  const lines = items.map((a, i) => {
+    const score = a.averageScore ? `⭐ ${(a.averageScore / 10).toFixed(1)}` : '⭐ —';
+    const next = a.nextAiringEpisode
+      ? `⏭️ الحلقة ${a.nextAiringEpisode.episode}: ${fmtDate(a.nextAiringEpisode.airingAt)}`
+      : `📺 ${STATUS_AR[a.status] || a.status || ''}`;
+    return `${i + 1}. 🎬 *${anilist.titleOf(a)}*\n   ${score} • ${next}`;
+  });
+  return reply(sock, chatId, msg,
+    `🌸 *أنميات موسم ${SEASON_AR[season]} ${seasonYear}* (حسب الشعبية)\n\n${lines.join('\n')}\n\n🔎 للتفاصيل: ${config.prefix}بحث-انمي <الاسم>`);
+}
+
+async function searchAnimeCmd(sock, chatId, msg, args) {
+  const query = args.join(' ').trim();
+  if (!query) return reply(sock, chatId, msg, `⚠️ اكتب اسم الأنمي. مثال: ${config.prefix}بحث-انمي Jujutsu Kaisen`);
+  const [a] = await anilist.searchAnime(query, 1);
+  if (!a) return reply(sock, chatId, msg, `🔍 ما لقيت أنمي باسم: ${query}`);
+  const lines = [
+    `🎬 *${anilist.titleOf(a)}*`,
+    a.title?.native ? `🈷️ ${a.title.native}` : null,
+    `📺 النوع: ${a.format || '—'} • الحلقات: ${a.episodes || '—'}`,
+    `⭐ التقييم: ${a.averageScore ? (a.averageScore / 10).toFixed(1) + '/10' : '—'}`,
+    `📌 الحالة: ${STATUS_AR[a.status] || a.status || '—'}`,
+    a.nextAiringEpisode ? `⏭️ الحلقة ${a.nextAiringEpisode.episode}: ${fmtDate(a.nextAiringEpisode.airingAt)}` : null,
+    a.siteUrl ? `🔗 ${a.siteUrl}` : null,
+  ].filter(Boolean);
+  const caption = lines.join('\n');
+  if (a.coverImage?.large) {
+    try {
+      return await sock.sendMessage(chatId, { image: { url: a.coverImage.large }, caption }, msg ? { quoted: msg } : undefined);
+    } catch {
+      /* نرسل نصاً إن فشلت الصورة */
+    }
+  }
+  return reply(sock, chatId, msg, caption);
+}
+
+async function showSchedule(sock, chatId, msg, args) {
+  const which = (args[0] || '').toLowerCase();
+  const when = which === 'بكرة' || which === 'غداً' || which === 'غدا' || which === 'tomorrow' ? 'tomorrow' : 'today';
+  const base = new Date(Date.now() + (when === 'tomorrow' ? 24 * 3600 * 1000 : 0));
+  const bounds = animeFeed.localDayBounds(base);
+  let airing = [];
+  let error = null;
+  try {
+    airing = await anilist.airingBetween(bounds.from, bounds.to, 100);
+  } catch (err) {
+    error = err.message;
+  }
+  const custom = db.listCustomSchedule().filter((r) => r.day_of_week === bounds.weekday);
+  const lines = [
+    ...airing.map((a) => `• ${animeFeed.formatClock(a.airingAt)} — ${clip(a.title, 60)} (حلقة ${a.episode})`),
+    ...custom.map((c) => `• ${c.time_local} — ${c.title}${c.note ? ` (${c.note})` : ''}`),
+  ];
+  const head = `🗓️ *مواعيد ${when === 'tomorrow' ? 'الغد' : 'اليوم'}*\n📅 ${bounds.dateLabel}\n🕒 التوقيت: ${config.timezone}`;
+  if (!lines.length) {
+    return reply(sock, chatId, msg, `${head}\n\n${error ? '⚠️ تعذر جلب المواعيد الآن، حاول لاحقاً.' : '📭 لا توجد حلقات مجدولة.'}`);
+  }
+  return reply(sock, chatId, msg, `${head}\n\n${lines.join('\n')}`);
+}
+
+async function showNews(sock, chatId, msg, args) {
+  let limit = Number(args[0]);
+  if (!Number.isFinite(limit) || limit < 1) limit = 5;
+  limit = Math.min(limit, 10);
+  let items = db.listRecentNewsItems(limit);
+  if (!items.length) {
+    await animeFeed.refreshNewsSources();
+    items = db.listRecentNewsItems(limit);
+  }
+  if (!items.length) return reply(sock, chatId, msg, '📭 لا توجد أخبار متاحة الآن، جرّب لاحقاً.');
+  const lines = items.map((n, i) => {
+    const when = n.published_at ? fmtDate(Math.floor(n.published_at / 1000)) : '';
+    let block = `${i + 1}. *${clip(n.title, 140)}*`;
+    if (when) block += `\n   🕒 ${when}`;
+    if (n.link) block += `\n   🔗 ${n.link}`;
+    block += `\n   _(${n.source_name})_`;
+    return block;
+  });
+  return reply(sock, chatId, msg, `🗞️ *آخر أخبار الأنمي*\n\n${lines.join('\n\n')}`);
+}
+
+async function digestCmd(sock, chatId, msg, senderId, args) {
+  if (!isAdminUser(senderId)) return reply(sock, chatId, msg, responses.get('persona', 'denied_admin'));
+  const sub = (args[0] || '').toLowerCase();
+  if (sub === 'ايقاف' || sub === 'إيقاف' || sub === 'off') {
+    db.unsubscribeNewsletter(chatId);
+    return reply(sock, chatId, msg, '🔕 تم إيقاف نشرة الأنمي في هذه المحادثة.');
+  }
+  if (sub === 'الان' || sub === 'الآن' || sub === 'now') {
+    const digest = await animeFeed.buildDigest();
+    return reply(sock, chatId, msg, digest.text);
+  }
+  db.subscribeNewsletter({ chatId, addedBy: senderId });
+  const time = db.getGlobalSetting('anime_digest_time') || '09:00';
+  return reply(sock, chatId, msg,
+    `📺 تم تفعيل نشرة الأنمي اليومية لهذه المحادثة ✅\n🕒 تُرسل كل يوم الساعة ${time} (${config.timezone}).\n` +
+    `الأخبار تُنشر مرة واحدة لكل خبر، والمواعيد تشمل حلقات اليوم.\n\n` +
+    `💡 لإيقافها: ${config.prefix}إيقاف-نشرة • لإرسالها الآن: ${config.prefix}نشرة-انمي الان`);
 }
 
 module.exports = async function animeNewsCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-
-    // ===== أحدث أنميات الموسم الحالي =====
-    if (commandKey === 'انميات' || commandKey === 'موسم') {
-        await sock.sendMessage(chatId, { text: '⏳ جاري جلب قائمة أحدث الأنميات...' }, { quoted: msg });
-        try {
-            const data = await fetchJSON('https://api.jikan.moe/v4/seasons/now?limit=10');
-            if (!data.data || data.data.length === 0) throw new Error('لا توجد نتائج');
-            const list = data.data.slice(0, 10).map((a, i) => {
-                return `${i + 1}. 🎬 *${a.title}*\n   ⭐ التقييم: ${a.score || 'غير محدد'} | 📺 ${a.episodes || '?'} حلقة`;
-            }).join('\n\n');
-            await sock.sendMessage(chatId, {
-                text: `📺 *أنميات الموسم الحالي* 🍀\n\n${list}\n\n🔮 استمتع بمشاهدة عالم السحر!`
-            }, { quoted: msg });
-        } catch (err) {
-            logger.error('[animeNews:انميات] ' + err.message);
-            await sock.sendMessage(chatId, { text: '⚠️ تعذر جلب قائمة الأنميات، حاول لاحقاً.' }, { quoted: msg });
-        }
-        return;
+  try {
+    switch (commandKey) {
+      case 'انميات':
+      case 'موسم':
+        return await showSeason(sock, chatId, msg);
+      case 'بحث-انمي':
+      case 'searchanime':
+        return await searchAnimeCmd(sock, chatId, msg, args);
+      case 'مواعيد-انمي':
+      case 'جدول-انمي':
+      case 'anischedule':
+        return await showSchedule(sock, chatId, msg, args);
+      case 'اخبار-انمي':
+      case 'anews':
+        return await showNews(sock, chatId, msg, args);
+      case 'نشرة-انمي':
+        return await digestCmd(sock, chatId, msg, senderId, args);
+      case 'إيقاف-نشرة':
+        if (!isAdminUser(senderId)) return reply(sock, chatId, msg, responses.get('persona', 'denied_admin'));
+        db.unsubscribeNewsletter(chatId);
+        return reply(sock, chatId, msg, '🔕 تم إيقاف نشرة الأنمي في هذه المحادثة.');
+      default:
+        return reply(sock, chatId, msg, '⚠️ أمر غير معروف.');
     }
-
-    // ===== بحث عن أنمي محدد =====
-    if (commandKey === 'بحث-انمي' || commandKey === 'searchanime') {
-        const query = args.join(' ');
-        if (!query) {
-            await sock.sendMessage(chatId, { text: `⚠️ أرسل اسم الأنمي. مثال: ${config.prefix}بحث-انمي Naruto` }, { quoted: msg });
-            return;
-        }
-        await sock.sendMessage(chatId, { text: `🔍 جاري البحث عن: ${query}...` }, { quoted: msg });
-        try {
-            const data = await fetchJSON(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=1`);
-            if (!data.data || data.data.length === 0) throw new Error('لا توجد نتائج');
-            const a = data.data[0];
-            const text =
-                `🎌 *${a.title}* (${a.title_japanese || ''})\n\n` +
-                `⭐ التقييم: ${a.score || 'غير محدد'} | 🏆 الرتبة: #${a.rank || '?'}\n` +
-                `📺 الحلقات: ${a.episodes || '?'} | 📅 ${a.aired?.string || 'غير محدد'}\n` +
-                `🔖 النوع: ${a.genres?.map(g => g.name).join(', ') || 'غير محدد'}\n\n` +
-                `📝 *القصة:*\n${a.synopsis ? a.synopsis.slice(0, 400) + '...' : 'لا يوجد وصف'}`;
-            if (a.images?.jpg?.image_url) {
-                await sock.sendMessage(chatId, { image: { url: a.images.jpg.image_url }, caption: text }, { quoted: msg });
-            } else {
-                await sock.sendMessage(chatId, { text }, { quoted: msg });
-            }
-        } catch (err) {
-            logger.error('[animeNews:بحث-انمي] ' + err.message);
-            await sock.sendMessage(chatId, { text: `⚠️ لم يُعثر على نتائج لـ "${query}"` }, { quoted: msg });
-        }
-        return;
-    }
-
-    // ===== الاشتراك في النشرة اليومية للأنمي - للأدمن فقط =====
-    if (commandKey === 'نشرة-انمي') {
-        if (!isAdminUser(senderId)) {
-            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لفرسان السحر الأقوياء (المشرفين) فقط.' }, { quoted: msg });
-            return;
-        }
-        subscribeToNewsletter(chatId, senderId);
-        await sock.sendMessage(chatId, {
-            text: `✅ تم تفعيل النشرة اليومية للأنمي في هذه المحادثة!\nستصلك تقريباً كل يوم في الساعة 9 صباحاً قائمة بأفضل أنميات الموسم. 📺🍀`
-        }, { quoted: msg });
-        return;
-    }
-
-    // ===== إلغاء الاشتراك من النشرة - للأدمن فقط =====
-    if (commandKey === 'إيقاف-نشرة') {
-        if (!isAdminUser(senderId)) {
-            await sock.sendMessage(chatId, { text: '❌ سحرك لا يكفي! أستا يخبرك أن هذا الأمر لفرسان السحر الأقوياء (المشرفين) فقط.' }, { quoted: msg });
-            return;
-        }
-        unsubscribeFromNewsletter(chatId);
-        await sock.sendMessage(chatId, { text: '✅ تم إلغاء الاشتراك في النشرة اليومية.' }, { quoted: msg });
-        return;
-    }
+  } catch (err) {
+    logger.error(`[anime] ${commandKey}: ${err.message}`);
+    return reply(sock, chatId, msg, '⚠️ تعذر جلب بيانات الأنمي الآن (مصدر البيانات لا يستجيب). حاول بعد قليل.');
+  }
 };
 
-// تصدير الدوال للـ Scheduler
-module.exports.getNewsletterSubscribers = getNewsletterSubscribers;
-module.exports.fetchJSON = fetchJSON;
+module.exports.isAdminUser = isAdminUser;

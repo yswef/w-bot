@@ -434,6 +434,10 @@ function startProfessionalDashboard() {
         return json(res, { ok: true });
       }
 
+      // واجهات إضافية: المشرفون، النقاط، الأنمي، المهام
+      if (pathname.startsWith('/api/') && (await require('./extraApi')(req, res, url, pathname, { json, readBody }))) {
+        return;
+      }
       if (pathname.startsWith('/api/')) {
         return json(res, { error: 'المسار غير موجود' }, 404);
       }

@@ -6,12 +6,12 @@
 // الاستخدام: !ايدي أو !myid
 // =============================================
 const config = require('../config');
+const { isAdminJid, jidUser } = require('../utils/permissions');
 
 module.exports = async function whoami({ sock, msg, chatId, senderId }) {
   const digits = (senderId || '').replace(/\D/g, '');
   const isLid = (senderId || '').endsWith('@lid');
-  const admins = config.adminNumbers || [config.ownerNumber];
-  const matchedAdmin = admins.find((a) => a && digits.includes(a));
+  const matchedAdmin = isAdminJid(senderId) ? (jidUser(senderId) || '') : null;
 
   let text = `🆔 *معرّفك الكامل:*\n\`${senderId}\`\n\n🔢 *الأرقام المستخرجة منه:*\n\`${digits}\`\n\n`;
 

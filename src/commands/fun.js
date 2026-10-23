@@ -242,14 +242,20 @@ async function getCharacterImageUrl(searchName) {
     }
   };
 
+  // ⚠️ إصلاح: كان فشل الشبكة المؤقت يُخزَّن كـ "لا توجد صورة" إلى الأبد، فلا تُعاد
+  // المحاولة أبداً. الآن نخزّن النتيجة النهائية فقط (نجاح أو شخصية غير موجودة)،
+  // والفشل المؤقت يبقى قابلاً لإعادة المحاولة في الطلب القادم.
   let url = null;
+  let transientFailure = false;
   try {
     url = await attempt();
   } catch (err) {
+    transientFailure = true;
     if ([429, 500, 502, 503, 504].includes(err.statusCode)) {
       await new Promise((r) => setTimeout(r, 1200));
       try {
         url = await attempt();
+        transientFailure = false;
       } catch (err2) {
         logger.warn(`فشل جلب صورة الشخصية "${searchName}" من AniList بعد إعادة المحاولة: ${err2.message}`);
       }
@@ -258,8 +264,12 @@ async function getCharacterImageUrl(searchName) {
     }
   }
 
-  characterImageCache.set(searchName, url);
-  setCachedCharacterImage(searchName, url);
+  if (url || !transientFailure) {
+    characterImageCache.set(searchName, url);
+  }
+  if (!transientFailure) {
+    setCachedCharacterImage(searchName, url);
+  }
   return url;
 }
 
@@ -268,7 +278,10 @@ async function getCharacterImageUrl(searchName) {
 // استخدام. تُنادى مرة واحدة بعد نجاح الاتصال بواتساب، ولا توقف عمل
 // البوت أثناء انتظارها (تعمل في الخلفية). المهلة بين كل طلب والذي يليه
 // (1.2 ثانية) تحترم حدود معدل طلبات AniList.
+let warmupStarted = false; // ⚠️ إصلاح: كان التحميل يتكرر مع كل إعادة اتصال
 async function warmupCharacterImages() {
+  if (warmupStarted) return;
+  warmupStarted = true;
   const toFetch = allCharacters.filter((c) => !c.image); // فقط من لا يملك رابط صورة ثابت
   logger.info(`⏳ بدء تحميل مسبق لصور ${toFetch.length} شخصية أنمي...`);
   let success = 0;

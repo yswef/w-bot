@@ -176,13 +176,21 @@ function getStats() {
   };
 }
 
+// ⚠️ إصلاح: كان INSERT OR REPLACE يمسح أعمدة التعديل/الحذف عند إعادة حفظ نفس
+// الرسالة. الآن الحفظ الأول يثبت، والإعادة لا تمسح النص المعدّل ولا حالة الحذف.
 function saveMessage(msg) {
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO messages
+    INSERT INTO messages
     (id, chat_id, sender_id, sender_name, message_type, text_content, media_path, timestamp, is_deleted)
     VALUES (@id, @chat_id, @sender_id, @sender_name, @message_type, @text_content, @media_path, @timestamp, 0)
+    ON CONFLICT(id) DO UPDATE SET
+      media_path = COALESCE(excluded.media_path, messages.media_path)
   `);
   stmt.run(msg);
+}
+
+function hasMessage(id) {
+  return !!db.prepare(`SELECT 1 FROM messages WHERE id = ?`).get(id);
 }
 
 function markDeleted(id) {
@@ -315,7 +323,7 @@ function setGlobalSetting(key, value) {
 
 function addScheduledEvent(chatId, cronExpression, message) {
   const stmt = db.prepare(`INSERT INTO scheduled_events (chat_id, cron_expression, message, active) VALUES (?, ?, ?, 1)`);
-  stmt.run(chatId, cronExpression, message);
+  return Number(stmt.run(chatId, cronExpression, message).lastInsertRowid);
 }
 
 function getScheduledEvents() {
@@ -437,8 +445,339 @@ function setCachedCharacterImage(name, imageUrl) {
   `).run(name, imageUrl, Date.now());
 }
 
+// =============================================
+// 👑 المشرفون الإضافيون (يُدارون من لوحة التحكم أو بالأمر)
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bot_admins (
+    user_id TEXT PRIMARY KEY,
+    added_by TEXT,
+    added_at INTEGER NOT NULL
+  )
+`);
+
+function addBotAdmin(userId, addedBy = null) {
+  db.prepare(`INSERT OR IGNORE INTO bot_admins (user_id, added_by, added_at) VALUES (?, ?, ?)`)
+    .run(userId, addedBy, Date.now());
+}
+function removeBotAdmin(userId) {
+  return db.prepare(`DELETE FROM bot_admins WHERE user_id = ?`).run(userId);
+}
+function listBotAdmins() {
+  return db.prepare(`SELECT * FROM bot_admins ORDER BY added_at DESC`).all();
+}
+function isStoredAdmin(userId) {
+  return !!db.prepare(`SELECT 1 FROM bot_admins WHERE user_id = ?`).get(userId);
+}
+
+// =============================================
+// ⭐ نظام النقاط (XP) لكل محادثة
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_points (
+    chat_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT,
+    points INTEGER NOT NULL DEFAULT 0,
+    messages INTEGER NOT NULL DEFAULT 0,
+    last_award_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (chat_id, user_id)
+  )
+`);
+
+function getUserPoints(chatId, userId) {
+  return db.prepare(`SELECT * FROM user_points WHERE chat_id = ? AND user_id = ?`).get(chatId, userId) || null;
+}
+function getPointsLeaderboard(chatId = null, limit = 10) {
+  if (chatId) {
+    return db.prepare(`SELECT * FROM user_points WHERE chat_id = ? ORDER BY points DESC, messages DESC LIMIT ?`).all(chatId, limit);
+  }
+  return db.prepare(`
+    SELECT user_id, MAX(user_name) AS user_name, SUM(points) AS points, SUM(messages) AS messages
+    FROM user_points GROUP BY user_id ORDER BY points DESC LIMIT ?
+  `).all(limit);
+}
+function getChatPointsRank(chatId, userId) {
+  const row = db.prepare(`
+    SELECT COUNT(*) + 1 AS rank FROM user_points
+    WHERE chat_id = ? AND points > (SELECT COALESCE(MAX(points), 0) FROM user_points WHERE chat_id = ? AND user_id = ?)
+  `).get(chatId, chatId, userId);
+  return row?.rank || null;
+}
+// يضيف نقاطاً ويعيد الرصيد الجديد. cooldownMs يمنع الاستغلال بالرسائل المتكررة.
+function awardPoints({ chatId, userId, userName, amount, cooldownMs = 0, now = Date.now() }) {
+  const row = getUserPoints(chatId, userId);
+  if (row && cooldownMs > 0 && now - row.last_award_at < cooldownMs) return { awarded: false, points: row.points };
+  db.prepare(`
+    INSERT INTO user_points (chat_id, user_id, user_name, points, messages, last_award_at)
+    VALUES (?, ?, ?, ?, 1, ?)
+    ON CONFLICT(chat_id, user_id) DO UPDATE SET
+      points = points + excluded.points,
+      messages = messages + 1,
+      user_name = COALESCE(excluded.user_name, user_points.user_name),
+      last_award_at = excluded.last_award_at
+  `).run(chatId, userId, userName || null, amount, now);
+  return { awarded: true, points: (row?.points || 0) + amount };
+}
+function setUserPoints(chatId, userId, points) {
+  db.prepare(`
+    INSERT INTO user_points (chat_id, user_id, points, messages, last_award_at)
+    VALUES (?, ?, ?, 0, 0)
+    ON CONFLICT(chat_id, user_id) DO UPDATE SET points = excluded.points
+  `).run(chatId, userId, Math.max(0, Math.floor(points)));
+}
+
+// =============================================
+// ⏰ المطالبة بالتذكير بشكل ذري: يمنع إرساله أكثر من مرة حتى لو تداخلت المهام
+// =============================================
+function claimReminder(id) {
+  const info = db.prepare(`UPDATE reminders SET sent = 2 WHERE id = ? AND sent = 0`).run(id);
+  return info.changes === 1;
+}
+function releaseReminder(id) {
+  db.prepare(`UPDATE reminders SET sent = 0 WHERE id = ? AND sent = 2`).run(id);
+}
+
+// =============================================
+// 📅 المهام المجدولة للمجموعات (.جدولة)
+// =============================================
+function listScheduledEvents() {
+  return db.prepare(`SELECT * FROM scheduled_events WHERE active = 1 ORDER BY id ASC`).all();
+}
+function deactivateScheduledEvent(id) {
+  return db.prepare(`UPDATE scheduled_events SET active = 0 WHERE id = ?`).run(id);
+}
+
+// =============================================
+// 🧾 تعديل مفاتيح الحظر/الردود المجمعة + تنظيف الأعضاء المحظورين
+// =============================================
+function getCustomReplyById(id) {
+  return db.prepare(`SELECT * FROM custom_replies WHERE id = ?`).get(id) || null;
+}
+function getCustomReactionById(id) {
+  return db.prepare(`SELECT * FROM custom_reactions WHERE id = ?`).get(id) || null;
+}
+
+// =============================================
+// 📺 الأنمي: المصادر والأخبار والمواعيد المخصصة والمشتركون في النشرة
+// =============================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS anime_newsletter (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT NOT NULL UNIQUE,
+    added_by TEXT,
+    active INTEGER DEFAULT 1,
+    created_at INTEGER
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS anime_news_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_ok_at INTEGER,
+    last_error TEXT,
+    last_count INTEGER NOT NULL DEFAULT 0,
+    added_by TEXT,
+    created_at INTEGER NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS anime_news_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL,
+    guid TEXT NOT NULL,
+    title TEXT NOT NULL,
+    link TEXT,
+    summary TEXT,
+    image TEXT,
+    published_at INTEGER,
+    fetched_at INTEGER NOT NULL,
+    posted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (source_id, guid)
+  )
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_anime_news_posted ON anime_news_items (posted, published_at DESC)`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS anime_news_custom (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    body TEXT,
+    link TEXT,
+    created_by TEXT,
+    created_at INTEGER NOT NULL,
+    posted INTEGER NOT NULL DEFAULT 0,
+    posted_at INTEGER
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS anime_schedule_custom (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    time_local TEXT NOT NULL,
+    note TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+  )
+`);
+
+function listNewsSources() {
+  return db.prepare(`SELECT * FROM anime_news_sources ORDER BY id ASC`).all();
+}
+function getEnabledNewsSources() {
+  return db.prepare(`SELECT * FROM anime_news_sources WHERE enabled = 1 ORDER BY id ASC`).all();
+}
+function addNewsSource({ name, url, addedBy = null }) {
+  const info = db.prepare(`
+    INSERT OR IGNORE INTO anime_news_sources (name, url, enabled, added_by, created_at) VALUES (?, ?, 1, ?, ?)
+  `).run(name, url, addedBy, Date.now());
+  return info.changes === 1 ? info.lastInsertRowid : null;
+}
+function setNewsSourceEnabled(id, enabled) {
+  return db.prepare(`UPDATE anime_news_sources SET enabled = ? WHERE id = ?`).run(enabled ? 1 : 0, id);
+}
+function deleteNewsSource(id) {
+  db.prepare(`DELETE FROM anime_news_items WHERE source_id = ?`).run(id);
+  return db.prepare(`DELETE FROM anime_news_sources WHERE id = ?`).run(id);
+}
+function markNewsSourceResult(id, { ok, count = 0, error = null }) {
+  if (ok) {
+    db.prepare(`UPDATE anime_news_sources SET last_ok_at = ?, last_error = NULL, last_count = ? WHERE id = ?`)
+      .run(Date.now(), count, id);
+  } else {
+    db.prepare(`UPDATE anime_news_sources SET last_error = ? WHERE id = ?`).run(String(error || 'unknown').slice(0, 300), id);
+  }
+}
+// يُرجع true إذا أُضيف الخبر فعلاً (لم يكن موجوداً)
+function insertNewsItem(item) {
+  const info = db.prepare(`
+    INSERT OR IGNORE INTO anime_news_items
+      (source_id, guid, title, link, summary, image, published_at, fetched_at, posted)
+    VALUES (@source_id, @guid, @title, @link, @summary, @image, @published_at, @fetched_at, @posted)
+  `).run(item);
+  return info.changes === 1;
+}
+function getUnpostedNewsItems(limit = 5, sinceMs = 0) {
+  return db.prepare(`
+    SELECT n.*, s.name AS source_name FROM anime_news_items n
+    JOIN anime_news_sources s ON s.id = n.source_id
+    WHERE n.posted = 0 AND COALESCE(n.published_at, n.fetched_at) >= ?
+    ORDER BY COALESCE(n.published_at, n.fetched_at) DESC LIMIT ?
+  `).all(sinceMs, limit);
+}
+function markNewsItemsPosted(ids) {
+  const stmt = db.prepare(`UPDATE anime_news_items SET posted = 1 WHERE id = ?`);
+  for (const id of ids) stmt.run(id);
+}
+function listRecentNewsItems(limit = 30) {
+  return db.prepare(`
+    SELECT n.*, s.name AS source_name FROM anime_news_items n
+    JOIN anime_news_sources s ON s.id = n.source_id
+    ORDER BY COALESCE(n.published_at, n.fetched_at) DESC LIMIT ?
+  `).all(limit);
+}
+function addCustomNews({ title, body = null, link = null, createdBy = null }) {
+  return db.prepare(`INSERT INTO anime_news_custom (title, body, link, created_by, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .run(title, body, link, createdBy, Date.now()).lastInsertRowid;
+}
+function listCustomNews(limit = 50) {
+  return db.prepare(`SELECT * FROM anime_news_custom ORDER BY id DESC LIMIT ?`).all(limit);
+}
+function getPendingCustomNews() {
+  return db.prepare(`SELECT * FROM anime_news_custom WHERE posted = 0 ORDER BY id ASC`).all();
+}
+function markCustomNewsPosted(ids) {
+  const stmt = db.prepare(`UPDATE anime_news_custom SET posted = 1, posted_at = ? WHERE id = ?`);
+  const now = Date.now();
+  for (const id of ids) stmt.run(now, id);
+}
+function deleteCustomNews(id) {
+  return db.prepare(`DELETE FROM anime_news_custom WHERE id = ?`).run(id);
+}
+function addCustomSchedule({ title, dayOfWeek, timeLocal, note = null }) {
+  return db.prepare(`INSERT INTO anime_schedule_custom (title, day_of_week, time_local, note, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`)
+    .run(title, dayOfWeek, timeLocal, note, Date.now()).lastInsertRowid;
+}
+function listCustomSchedule() {
+  return db.prepare(`SELECT * FROM anime_schedule_custom WHERE active = 1 ORDER BY day_of_week ASC, time_local ASC`).all();
+}
+function deleteCustomSchedule(id) {
+  return db.prepare(`UPDATE anime_schedule_custom SET active = 0 WHERE id = ?`).run(id);
+}
+function subscribeNewsletter({ chatId, addedBy = null }) {
+  db.prepare(`
+    INSERT INTO anime_newsletter (chat_id, added_by, active, created_at) VALUES (?, ?, 1, ?)
+    ON CONFLICT(chat_id) DO UPDATE SET active = 1
+  `).run(chatId, addedBy, Date.now());
+}
+function unsubscribeNewsletter(chatId) {
+  return db.prepare(`UPDATE anime_newsletter SET active = 0 WHERE chat_id = ?`).run(chatId);
+}
+function getNewsletterSubscribers() {
+  return db.prepare(`SELECT * FROM anime_newsletter WHERE active = 1 ORDER BY id ASC`).all();
+}
+function getNewsletterStatus(chatId) {
+  return db.prepare(`SELECT * FROM anime_newsletter WHERE chat_id = ?`).get(chatId) || null;
+}
+
+// 🕌 جدول الجدولة الإسلامية (آيات/أذكار) — يُنشأ هنا لا في أمر islamic.js
+db.exec(`
+  CREATE TABLE IF NOT EXISTS islamic_schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'quran',
+    time_expression TEXT NOT NULL,
+    active INTEGER DEFAULT 1,
+    added_by TEXT
+  )
+`);
+
 module.exports = {
   db,
+  hasMessage,
+  addBotAdmin,
+  removeBotAdmin,
+  listBotAdmins,
+  isStoredAdmin,
+  getUserPoints,
+  getPointsLeaderboard,
+  getChatPointsRank,
+  awardPoints,
+  setUserPoints,
+  claimReminder,
+  releaseReminder,
+  listScheduledEvents,
+  deactivateScheduledEvent,
+  getCustomReplyById,
+  getCustomReactionById,
+  listNewsSources,
+  getEnabledNewsSources,
+  addNewsSource,
+  setNewsSourceEnabled,
+  deleteNewsSource,
+  markNewsSourceResult,
+  insertNewsItem,
+  getUnpostedNewsItems,
+  markNewsItemsPosted,
+  listRecentNewsItems,
+  addCustomNews,
+  listCustomNews,
+  getPendingCustomNews,
+  markCustomNewsPosted,
+  deleteCustomNews,
+  addCustomSchedule,
+  listCustomSchedule,
+  deleteCustomSchedule,
+  subscribeNewsletter,
+  unsubscribeNewsletter,
+  getNewsletterSubscribers,
+  getNewsletterStatus,
   saveMessage,
   markDeleted,
   getMessage,

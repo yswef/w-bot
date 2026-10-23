@@ -10,6 +10,7 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
+const { handleParticipantsUpdate } = require('./handlers/welcomeHandler');
 const {
   normalizeSessionName,
   getConfiguredSessionNames,
@@ -105,7 +106,18 @@ async function launchSession(normalizedName) {
     browser: ['WhatsApp Bot', 'Chrome', '1.0.0'],
   });
 
+  // ⚠️ إصلاح التكرار: السوكيت القديم يبقى حياً لحظة بعد إعادة الاتصال، فكان يعالج
+  // الرسائل والأوامر مرة ثانية. الآن كل مستمع يتجاهل أي سوكيت لم يعد هو الحالي.
+  const isCurrent = () => activeBots.get(normalizedName) === sock;
+
   sock.ev.on('connection.update', (update) => {
+    if (!isCurrent()) {
+      if (update.connection === 'close') {
+        intentionalClose.delete(normalizedName);
+        logger.info(`[${normalizedName}] تم إغلاق سوكيت قديم (لا يؤثر على الجلسة الحالية).`);
+      }
+      return;
+    }
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -155,20 +167,40 @@ async function launchSession(normalizedName) {
   });
 
   sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('messages.upsert', (payload) => handleIncomingMessages(payload, sock));
-  sock.ev.on('messages.update', (updates) => handleMessageUpdates(updates, sock));
+  sock.ev.on('messages.upsert', (payload) => {
+    if (!isCurrent()) return;
+    handleIncomingMessages(payload, sock);
+  });
+  sock.ev.on('messages.update', (updates) => {
+    if (!isCurrent()) return;
+    handleMessageUpdates(updates, sock);
+  });
+  // الترحيب يعتمد على حدث انضمام الأعضاء الرسمي
+  sock.ev.on('group-participants.update', (event) => {
+    if (!isCurrent()) return;
+    handleParticipantsUpdate(event, sock).catch((err) => logger.error('خطأ في الترحيب: ' + err.message));
+  });
 
+  // إن وُجد سوكيت سابق لنفس الجلسة نغلقه حتى لا يبقى حياً بالخلفية
+  const previous = activeBots.get(normalizedName);
   activeBots.set(normalizedName, sock);
-
-  if (normalizedName === getConfiguredSessionNames()[0]) {
-    startScheduler(sock);
+  if (previous && previous !== sock) {
+    try { previous.end?.(undefined); } catch { /* تجاهل */ }
   }
 
+  // الجدولة تعمل مرة واحدة فقط لكل عملية، وتستخدم دائماً السوكيت الحالي للجلسة الأساسية
+  if (normalizedName === getConfiguredSessionNames()[0]) {
+    startScheduler(() => activeBots.get(normalizedName) || null);
+  }
   return sock;
 }
 
 async function startBot(sessionName = 'default') {
   const normalizedName = normalizeSessionName(sessionName);
+  // 🚧 منع التكرار: إن كانت الجلسة متصلة الآن فلا نفتح سوكيت ثانياً
+  if (activeBots.has(normalizedName) && sessionStatus.get(normalizedName)?.connection === 'open') {
+    return activeBots.get(normalizedName);
+  }
 
   // 🚧 لو طُلب تشغيل نفس الجلسة وهي قيد التشغيل أصلاً نتجاهل الطلب المكرر،
   // لأن تشغيل جلستين بنفس بيانات الاعتماد يجعل واتساب يطرد إحداهما (loggedOut).

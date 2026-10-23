@@ -5,6 +5,7 @@
 const https = require('https');
 const { db } = require('../database/db');
 const config = require('../config');
+const { isAdminJid } = require('../utils/permissions');
 
 // جدول مجموعات البوت المُوقف فيها
 db.exec(`
@@ -44,10 +45,7 @@ function fetchJSON(url) {
     return fetchText(url).then(d => JSON.parse(d));
 }
 
-function isAdminUser(senderId) {
-    const admins = config.adminNumbers || [config.ownerNumber];
-    return admins.some(a => senderId.replace(/\D/g, '').includes(a));
-}
+function isAdminUser(senderId) { return isAdminJid(senderId); }
 
 module.exports = async function utilsCommand({ sock, msg, args, chatId, senderId, commandKey }) {
 

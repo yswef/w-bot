@@ -5,6 +5,7 @@
 // كما يدعم رقم فقط (يُعتبر دقائق) مثل: !تذكير راجع_الايميل 30
 // =============================================
 const config = require('../config');
+const { isAdminJid } = require('../utils/permissions');
 const responses = require('../utils/responses');
 const { addReminder } = require('../database/db');
 
@@ -15,11 +16,7 @@ const UNIT_MS = {
   d: 24 * 60 * 60 * 1000,
 };
 
-function isAdminUser(senderId) {
-  const admins = config.adminNumbers || [config.ownerNumber];
-  const digits = (senderId || '').replace(/\D/g, '');
-  return admins.some((a) => a && digits.includes(a));
-}
+function isAdminUser(senderId) { return isAdminJid(senderId); }
 
 // يحوّل نص مثل "3h" أو "45m" أو "2d" أو "30" إلى مللي ثانية
 function parseDuration(raw) {
@@ -68,8 +65,8 @@ module.exports = async function reminderCommand({ sock, msg, args, chatId, sende
   }
 
   const remindAt = Date.now() + durationMs;
-  // يُرسل التذكير دائماً لرقم المالك الأساسي (الأدمن) بغض النظر عن مكان إرسال الأمر
-  const targetJid = `${config.ownerNumber}@s.whatsapp.net`;
+  // يُرسل التذكير إلى نفس المحادثة التي طُلب فيها
+  const targetJid = chatId;
 
   addReminder({ targetJid, createdBy: senderId, text: reminderText, remindAt });
 

@@ -1,13 +1,12 @@
 const os = require('os');
 const { getGlobalSetting, setGlobalSetting, getStats, db } = require('../database/db');
 const config = require('../config');
+const { isAdminJid } = require('../utils/permissions');
 const responses = require('../utils/responses');
 
 // أوامر المالك
 module.exports = async function ownerCommand({ sock, msg, args, chatId, senderId, commandKey }) {
-    const digits = (senderId || '').replace(/\D/g, '');
-    const owners = config.adminNumbers || [config.ownerNumber];
-    const isOwner = owners.some((o) => o && digits.includes(o));
+    const isOwner = isAdminJid(senderId);
 
     if (!isOwner) {
         await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_owner') }, { quoted: msg });
