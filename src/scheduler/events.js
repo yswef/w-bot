@@ -208,6 +208,9 @@ function startScheduler(sockOrGetter) {
     return;
   }
 
+  // مصادر الأخبار الافتراضية تُضاف فوراً عند أول تشغيل (تظهر في اللوحة مباشرة)
+  try { animeFeed.seedDefaultSources(); } catch (err) { logger.warn('تعذر تهيئة مصادر الأخبار: ' + err.message); }
+
   // مصادر الأخبار: تحديث كل 30 دقيقة، وأول تحديث بعد دقيقة من التشغيل
   newsTask = cron.schedule(NEWS_REFRESH_CRON, refreshNews, { timezone: config.timezone });
   const firstRefresh = setTimeout(refreshNews, 60 * 1000);
