@@ -10,3 +10,6 @@ logs/
 *.db-shm
 media_store/*
 !media_store/.gitkeep
+
+# صور مرفوعة من لوحة التحكم (لا تُرفع إلى Git)
+data/

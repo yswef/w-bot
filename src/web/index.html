@@ -1,471 +1,787 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>لوحة تحكم أستا — Asta Bot Dashboard</title>
-    <style>
-      :root {
-        --bg: #070b18;
-        --panel: #101a33;
-        --panel-2: #0c1428;
-        --line: #1f2b4d;
-        --accent: #8b5cf6;
-        --accent-2: #ec4899;
-        --text: #e6ecff;
-        --muted: #93a3c8;
-        --ok: #22c55e;
-        --warn: #f59e0b;
-        --danger: #ef4444;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
-        background: radial-gradient(1200px 600px at 80% -10%, #2a1a4d 0%, var(--bg) 60%);
-        color: var(--text);
-        min-height: 100vh;
-      }
-      header {
-        padding: 18px 20px;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(7, 11, 24, 0.75);
-        position: sticky;
-        top: 0;
-        backdrop-filter: blur(8px);
-        z-index: 5;
-      }
-      h1 { font-size: 19px; margin: 0; }
-      h1 small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
-      .container { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; }
-      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); }
-      .pill.ok { color: var(--ok); border-color: rgba(34,197,94,.4); }
-      .pill.bad { color: var(--danger); border-color: rgba(239,68,68,.4); }
-      .pill.warn { color: var(--warn); border-color: rgba(245,158,11,.4); }
-      nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-      nav button {
-        background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
-        padding: 9px 15px; border-radius: 10px; cursor: pointer; font-size: 14px; font-family: inherit;
-      }
-      nav button.active { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; font-weight: 700; }
-      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
-      .card h2 { margin: 0 0 12px; font-size: 16px; color: #f0abfc; }
-      .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-      .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-      .stat .n { font-size: 26px; font-weight: 800; }
-      .stat .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
-      table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      th, td { text-align: right; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-      td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
-      input, select, textarea {
-        background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
-        padding: 10px 12px; border-radius: 10px; font-family: inherit; font-size: 14px; width: 100%;
-      }
-      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-      .row > * { flex: 1 1 180px; }
-      button.primary {
-        background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff;
-        border: 0; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit;
-      }
-      button.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; }
-      button.ghost:hover { color: var(--danger); border-color: var(--danger); }
-      .old { color: #fca5a5; text-decoration: line-through; }
-      .new { color: #86efac; }
-      .muted { color: var(--muted); font-size: 13px; }
-      .qr { text-align: center; }
-      .qr img { background: #fff; padding: 10px; border-radius: 12px; max-width: 300px; width: 100%; }
-      .hidden { display: none; }
-      .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 14px; }
-      pre.mono {
-        direction: ltr; text-align: left; background: var(--panel-2); border: 1px solid var(--line);
-        border-radius: 10px; padding: 12px; margin: 8px 0 0; overflow: auto;
-        font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a5b4fc;
-      }
-      @media (max-width: 640px) { th:nth-child(4), td:nth-child(4) { display: none; } }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>🍀 لوحة تحكم أستا <small>Asta WhatsApp Bot — Control Panel</small></h1>
-      <div>
-        <span id="conn" class="pill">جارٍ التحقق…</span>
-        <span id="uptime" class="pill"></span>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070b18" />
+  <title>لوحة تحكم أستا</title>
+  <style>
+    :root {
+      --bg: #070b18; --panel: #101a33; --panel-2: #0c1428; --line: #1f2b4d;
+      --accent: #8b5cf6; --accent-2: #ec4899; --text: #e6ecff; --muted: #93a3c8;
+      --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+      background: radial-gradient(900px 500px at 85% -10%, #2a1a4d 0%, var(--bg) 60%) fixed;
+      color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
+    }
+    header {
+      position: sticky; top: 0; z-index: 10; padding: 10px 14px;
+      background: rgba(7, 11, 24, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    h1 { font-size: 17px; margin: 0; white-space: nowrap; }
+    h1 small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+    .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); white-space: nowrap; }
+    .pill.ok { color: var(--ok); border-color: rgba(34,197,94,.45); }
+    .pill.bad { color: var(--danger); border-color: rgba(239,68,68,.45); }
+    nav {
+      position: sticky; top: 56px; z-index: 9; display: flex; gap: 6px; overflow-x: auto;
+      padding: 8px 10px; background: rgba(7,11,24,.95); border-bottom: 1px solid var(--line);
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav button {
+      flex: 0 0 auto; min-height: 42px; padding: 8px 14px; border-radius: 12px; cursor: pointer;
+      background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); font: inherit; font-size: 14px;
+    }
+    nav button.active { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; font-weight: 700; }
+    main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 80px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; color: #f0abfc; }
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+    @media (min-width: 720px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+    .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .stat .n { font-size: 22px; font-weight: 800; }
+    .stat .l { font-size: 12px; color: var(--muted); }
+    .item { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+    .item .head { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
+    .item .body { margin-top: 6px; white-space: pre-wrap; word-break: break-word; font-size: 14px; color: var(--text); }
+    .item .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; direction: ltr; unicode-bidi: plaintext; word-break: break-all; }
+    .old { color: #fca5a5; text-decoration: line-through; }
+    .new { color: #86efac; }
+    input, select, textarea {
+      width: 100%; min-height: 44px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+      padding: 10px 12px; border-radius: 12px; font: inherit; font-size: 16px; margin-bottom: 8px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .row { display: grid; gap: 8px; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .row.two { grid-template-columns: 1fr 1fr; } .row.three { grid-template-columns: 1fr 1fr 1fr; } }
+    button.primary, button.ghost, button.danger {
+      min-height: 44px; padding: 10px 16px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; border: 1px solid transparent;
+    }
+    button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; }
+    button.ghost { background: transparent; border-color: var(--line); color: var(--text); }
+    button.danger { background: transparent; border-color: rgba(239,68,68,.5); color: #fca5a5; }
+    button:disabled { opacity: .55; cursor: default; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .ok { color: var(--ok); } .bad { color: var(--danger); }
+    .empty { text-align: center; color: var(--muted); padding: 22px 10px; font-size: 14px; }
+    .hidden { display: none !important; }
+    .qr { text-align: center; }
+    .qr img { background: #fff; padding: 10px; border-radius: 12px; max-width: 280px; width: 100%; }
+    pre.codebox { direction: ltr; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; overflow: auto; font-size: 12px; color: #a5b4fc; white-space: pre-wrap; }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px; z-index: 50; max-width: 92vw; font-size: 14px; }
+    .spacer { flex: 1; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 12px; background: #1b2a4f; border-radius: 999px; padding: 3px 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🍀 لوحة أستا <small>Asta Control Panel</small></h1>
+    <span id="conn" class="pill">جارٍ التحقق…</span>
+  </header>
+  <nav id="tabs">
+    <button data-tab="overview" class="active">📊 الرئيسية</button>
+    <button data-tab="connection">🔗 الاتصال</button>
+    <button data-tab="anime">📺 الأنمي</button>
+    <button data-tab="points">⭐ النقاط</button>
+    <button data-tab="admins">👑 المشرفون</button>
+    <button data-tab="wives">🖼️ الصور</button>
+    <button data-tab="replies">🤖 الردود</button>
+    <button data-tab="reactions">😀 التفاعلات</button>
+    <button data-tab="edits">✏️ المعدّلة</button>
+    <button data-tab="deleted">🗑️ المحذوفة</button>
+    <button data-tab="chats">💬 المحادثات</button>
+    <button data-tab="jobs">🗓️ المهام</button>
+    <button data-tab="bans">🚫 المحظورون</button>
+    <button data-tab="reminders">⏰ التذكيرات</button>
+  </nav>
+
+  <main>
+    <!-- ================= الرئيسية ================= -->
+    <section id="tab-overview">
+      <div class="card">
+        <h2>📊 إحصائيات</h2>
+        <div class="grid" id="stats"></div>
       </div>
-    </header>
-
-    <div class="container">
-      <nav>
-        <button data-tab="overview" class="active">📊 نظرة عامة</button>
-        <button data-tab="connection">🔗 الاتصال / QR</button>
-        <button data-tab="edits">✏️ الرسائل المعدَّلة</button>
-        <button data-tab="deleted">🗑️ الرسائل المحذوفة</button>
-        <button data-tab="chats">💬 المحادثات</button>
-        <button data-tab="replies">🤖 الردود التلقائية</button>
-        <button data-tab="reactions">😀 التفاعلات</button>
-        <button data-tab="bans">🚫 المحظورون</button>
-        <button data-tab="reminders">⏰ التذكيرات</button>
-      </nav>
-
-      <!-- نظرة عامة -->
-      <section id="tab-overview">
-        <div class="card">
-          <h2>📊 الإحصائيات / Statistics</h2>
-          <div class="grid" id="stats"></div>
+      <div class="card">
+        <h2>🛠️ وضع الصيانة</h2>
+        <div class="row two">
+          <button class="ghost" id="maintOn">تفعيل</button>
+          <button class="ghost" id="maintOff">إيقاف</button>
         </div>
-        <div class="card">
-          <h2>✉️ إرسال رسالة / Send a message</h2>
-          <div class="row">
-            <input id="sendChat" placeholder="معرّف المحادثة مثل 9677xxxxxxx@s.whatsapp.net" />
-            <input id="sendText" placeholder="نص الرسالة" />
-          </div>
-          <button class="primary" onclick="sendMessage()">إرسال</button>
-          <span id="sendResult" class="muted"></span>
+        <div class="muted" id="maintState"></div>
+      </div>
+      <div class="card">
+        <h2>✉️ إرسال رسالة</h2>
+        <input id="sendChat" placeholder="معرّف المحادثة (مثال: 1203...@g.us أو 9677...@s.whatsapp.net)" dir="ltr" />
+        <textarea id="sendText" placeholder="نص الرسالة"></textarea>
+        <button class="primary" id="sendBtn">إرسال</button>
+        <div class="muted" id="sendResult"></div>
+      </div>
+    </section>
+
+    <!-- ================= الاتصال ================= -->
+    <section id="tab-connection" class="hidden">
+      <div class="card">
+        <h2>🔗 جلسات واتساب</h2>
+        <p class="muted">كل جلسة حساب واتساب مستقل. الجلسة الأساسية (من .env) تشغّل الجدولة والتذكيرات، ولا تُحذف من اللوحة.</p>
+        <div id="sessions"></div>
+      </div>
+      <div class="card">
+        <h2>➕ إضافة جلسة واتساب</h2>
+        <div class="row two">
+          <input id="sesName" placeholder="اسم الجلسة (مثال: second)" dir="ltr" />
+          <select id="sesMethod">
+            <option value="pair">🔢 كود الربط برقم الهاتف</option>
+            <option value="qr">📱 رمز QR</option>
+          </select>
         </div>
-      </section>
-
-      <!-- الاتصال -->
-      <section id="tab-connection" class="hidden">
-        <div class="card">
-          <h2>🔗 حالة الجلسات / Sessions</h2>
-          <div id="sessions"></div>
+        <div class="row two" style="margin-top:8px">
+          <input id="sesPhone" placeholder="رقم الهاتف بالصيغة الدولية (مثال: 967771234567)" dir="ltr" inputmode="numeric" />
+          <button class="primary" id="sesAdd">🚀 ربط الجلسة</button>
         </div>
-        <div class="card qr" id="qrCard">
-          <h2>📱 امسح الرمز للربط / Scan to link</h2>
-          <p class="muted">واتساب ← الأجهزة المرتبطة ← ربط جهاز<br />WhatsApp → Linked devices → Link a device</p>
-          <div id="qr"></div>
+        <div class="muted" id="sesResult"></div>
+        <details class="muted" style="margin-top:8px">
+          <summary>طريقة الربط بالكود</summary>
+          <ol>
+            <li>افتح واتساب على الجوال ← الإعدادات ← الأجهزة المرتبطة.</li>
+            <li>اضغط «ربط جهاز» ← «ربط برقم الهاتف بدلاً من ذلك».</li>
+            <li>أدخل الكود المعروض في البطاقة (8 أحرف) خلال دقيقة تقريباً.</li>
+          </ol>
+          <p>إذا انتهت صلاحية الكود أو لم يظهر، اضغط ♻️ إعادة الربط على البطاقة.</p>
+        </details>
+      </div>
+      <div class="card">
+        <h2>♻️ إعادة ربط جلسة بـ QR</h2>
+        <p class="muted">تحذف بيانات الربط الحالية وتطلب رمز QR جديداً. استخدمها عند انقطاع الجلسة أو خروجها من واتساب.</p>
+        <div class="row two">
+          <input id="relinkSession" placeholder="اسم الجلسة (افتراضياً default)" dir="ltr" />
+          <button class="danger" id="relinkBtn">🔄 إعادة الربط</button>
         </div>
-        <!-- ♻️ إعادة الربط: الحل الوحيد عندما يطرد واتساب البوت (loggedOut)،
-             لأن أمر ".اعادةربط" لا يصل لبوت مقطوع أصلاً -->
-        <div class="card" id="relinkCard">
-          <h2>♻️ إعادة ربط جلسة / Re-link a session</h2>
-          <p class="muted">
-            احذف بيانات الربط المنتهية واطلب رمز QR جديد. تعمل من المتصفح أو من طرفية السيرفر بنفس النتيجة.
-          </p>
-          <div class="row">
-            <input id="relinkSession" placeholder="اسم الجلسة (افتراضياً: default)" />
-            <button class="primary" id="relinkBtn" onclick="relinkSession()">🔄 إعادة الربط</button>
-          </div>
-          <span id="relinkResult" class="muted"></span>
-          <div id="relinkCommands"></div>
+        <div class="muted" id="relinkResult"></div>
+        <div id="relinkCommands"></div>
+      </div>
+    </section>
+
+    <!-- ================= الأنمي ================= -->
+    <section id="tab-anime" class="hidden">
+      <div class="card">
+        <h2>🕒 النشرة اليومية</h2>
+        <div class="row two">
+          <input id="digestTime" type="time" dir="ltr" />
+          <button class="primary" id="digestSave">حفظ الوقت</button>
         </div>
-      </section>
-
-      <!-- الرسائل المعدَّلة -->
-      <section id="tab-edits" class="hidden">
-        <div class="card">
-          <h2>✏️ آخر الرسائل المعدَّلة / Edited messages</h2>
-          <p class="muted">كل رسالة عُدِّلت، بنصها قبل وبعد التعديل.</p>
-          <div id="edits"></div>
+        <div class="row two">
+          <button class="ghost" id="digestPreview">👀 معاينة النشرة</button>
+          <button class="primary" id="digestSend">📤 إرسال الآن للمشتركين</button>
         </div>
-      </section>
+        <div class="muted" id="digestInfo"></div>
+        <pre class="codebox hidden" id="digestText"></pre>
+      </div>
 
-      <!-- المحذوفة -->
-      <section id="tab-deleted" class="hidden">
-        <div class="card">
-          <h2>🗑️ الرسائل المحذوفة / Deleted messages</h2>
-          <div id="deleted"></div>
+      <div class="card">
+        <h2>👥 المحادثات المشتركة</h2>
+        <div class="row two">
+          <input id="subChat" placeholder="معرّف المجموعة @g.us" dir="ltr" />
+          <button class="primary" id="subAdd">إضافة اشتراك</button>
         </div>
-      </section>
+        <div id="subs"></div>
+      </div>
 
-      <!-- المحادثات -->
-      <section id="tab-chats" class="hidden">
-        <div class="card">
-          <h2>💬 آخر المحادثات / Recent chats</h2>
-          <div id="chats"></div>
+      <div class="card">
+        <h2>📰 مصادر الأخبار (RSS)</h2>
+        <div class="row three">
+          <input id="srcName" placeholder="اسم المصدر" />
+          <input id="srcUrl" placeholder="رابط RSS (https://...)" dir="ltr" />
+          <button class="primary" id="srcAdd">إضافة مصدر</button>
         </div>
-      </section>
+        <button class="ghost" id="srcRefresh">🔄 تحديث المصادر الآن</button>
+        <div class="muted" id="srcResult"></div>
+        <div id="sources"></div>
+      </div>
 
-      <!-- الردود -->
-      <section id="tab-replies" class="hidden">
-        <div class="card">
-          <h2>➕ إضافة رد تلقائي / Add auto-reply</h2>
-          <div class="row">
-            <input id="rKeyword" placeholder="الكلمة المفتاحية" />
-            <input id="rReply" placeholder="الرد" />
-            <select id="rScope">
-              <option value="all">كل المحادثات</option>
-              <option value="group">المجموعات فقط</option>
-              <option value="private">الخاص فقط</option>
-            </select>
-          </div>
-          <button class="primary" onclick="addReply()">حفظ الرد</button>
+      <div class="card">
+        <h2>📢 خبر من الإدارة</h2>
+        <input id="cnTitle" placeholder="عنوان الخبر" />
+        <textarea id="cnBody" placeholder="تفاصيل (اختياري)"></textarea>
+        <input id="cnLink" placeholder="رابط (اختياري)" dir="ltr" />
+        <button class="primary" id="cnAdd">إضافة للنشرة القادمة</button>
+        <div id="customNews" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>🗓️ مواعيد مخصصة</h2>
+        <div class="row three">
+          <input id="schTitle" placeholder="اسم الأنمي / الحدث" />
+          <select id="schDay">
+            <option value="0">الأحد</option><option value="1">الاثنين</option><option value="2">الثلاثاء</option>
+            <option value="3">الأربعاء</option><option value="4">الخميس</option><option value="5">الجمعة</option><option value="6">السبت</option>
+          </select>
+          <input id="schTime" type="time" dir="ltr" />
         </div>
-        <div class="card"><h2>🤖 الردود الحالية</h2><div id="replies"></div></div>
-      </section>
+        <input id="schNote" placeholder="ملاحظة (اختياري)" />
+        <button class="primary" id="schAdd">إضافة موعد</button>
+        <div id="schedule" style="margin-top:10px"></div>
+      </div>
 
-      <!-- التفاعلات -->
-      <section id="tab-reactions" class="hidden">
-        <div class="card">
-          <h2>➕ إضافة تفاعل تلقائي / Add auto-reaction</h2>
-          <div class="row">
-            <input id="xKeyword" placeholder="الكلمة المفتاحية" />
-            <input id="xEmoji" placeholder="الإيموجي مثل 🔥" />
-          </div>
-          <button class="primary" onclick="addReaction()">حفظ التفاعل</button>
+      <div class="card">
+        <h2>📰 آخر الأخبار المجمّعة</h2>
+        <div id="newsList"></div>
+      </div>
+    </section>
+
+    <!-- ================= النقاط ================= -->
+    <section id="tab-points" class="hidden">
+      <div class="card">
+        <h2>⭐ لوحة المتصدرين</h2>
+        <div class="row two">
+          <input id="ptChat" placeholder="معرّف المجموعة (فارغ = كل المجموعات)" dir="ltr" />
+          <button class="primary" id="ptLoad">عرض</button>
         </div>
-        <div class="card"><h2>😀 التفاعلات الحالية</h2><div id="reactions"></div></div>
-      </section>
+        <div id="ptList"></div>
+      </div>
+      <div class="card">
+        <h2>✏️ تعديل نقاط عضو</h2>
+        <div class="row three">
+          <input id="ptAdjChat" placeholder="معرّف المجموعة @g.us" dir="ltr" />
+          <input id="ptAdjUser" placeholder="معرّف العضو @s.whatsapp.net" dir="ltr" />
+          <input id="ptAdjDelta" placeholder="مثال: 50 أو -20" dir="ltr" inputmode="numeric" />
+        </div>
+        <button class="primary" id="ptAdjBtn">تطبيق</button>
+        <div class="muted" id="ptAdjResult"></div>
+      </div>
+    </section>
 
-      <section id="tab-bans" class="hidden">
-        <div class="card"><h2>🚫 المستخدمون المحظورون / Banned users</h2><div id="bans"></div></div>
-      </section>
+    <!-- ================= المشرفون ================= -->
+    <section id="tab-admins" class="hidden">
+      <div class="card">
+        <h2>👑 إضافة مشرف</h2>
+        <p class="muted">المشرف يستطيع إدارة الردود والتفاعلات والترحيب والتذكيرات. أوامر المالك (اللوحة، إعادة الربط، البث، إدارة المشرفين) تبقى للمالك فقط.</p>
+        <div class="row two">
+          <input id="admNumber" placeholder="رقم الهاتف بالصيغة الدولية (مثال 9677xxxxxxx)" dir="ltr" inputmode="numeric" />
+          <button class="primary" id="admAdd">إضافة</button>
+        </div>
+        <div class="muted" id="admResult"></div>
+      </div>
+      <div class="card">
+        <h2>📋 المشرفون الحاليون</h2>
+        <div id="admins"></div>
+      </div>
+    </section>
 
-      <section id="tab-reminders" class="hidden">
-        <div class="card"><h2>⏰ التذكيرات القادمة / Pending reminders</h2><div id="reminders"></div></div>
-      </section>
-    </div>
+    <!-- ================= الصور (.زوج / .زوجة) ================= -->
+    <section id="tab-wives" class="hidden">
+      <div class="card">
+        <h2>🖼️ رفع صورة للشخصيات</h2>
+        <p class="muted">تُضاف الصورة إلى قائمة <span class="mono">.زوج</span> أو <span class="mono">.زوجة</span>. ارفع فقط صوراً تملك حق استخدامها، ولا ترفع صوراً لأشخاص حقيقيين بدون إذنهم. الحد الأقصى 4 ميغابايت، وصيغ PNG أو JPEG أو WEBP.</p>
+        <div class="row three">
+          <select id="wifeKind">
+            <option value="female">♀️ أنثى (زوجة)</option>
+            <option value="male">♂️ ذكر (زوج)</option>
+          </select>
+          <input id="wifeName" placeholder="الاسم (يظهر في الرد)" />
+          <input id="wifeNote" placeholder="ملاحظة (اختياري)" />
+        </div>
+        <input id="wifeFile" type="file" accept="image/png,image/jpeg,image/webp" />
+        <button class="primary" id="wifeAdd">⬆️ رفع الصورة</button>
+        <div class="muted" id="wifeResult"></div>
+      </div>
+      <div class="card"><h2>📚 الصور المرفوعة</h2><div id="wivesList"></div></div>
+    </section>
 
-    <script>
-      const $ = (id) => document.getElementById(id);
+    <!-- ================= الردود ================= -->
+    <section id="tab-replies" class="hidden">
+      <div class="card">
+        <h2>➕ رد تلقائي جديد</h2>
+        <div class="row three">
+          <input id="rKeyword" placeholder="الكلمة (تُطابَق ككلمة كاملة)" />
+          <input id="rReply" placeholder="الرد" />
+          <select id="rScope">
+            <option value="all">الكل</option><option value="group">المجموعات</option><option value="private">الخاص</option>
+          </select>
+        </div>
+        <div class="row two" style="margin-top:8px">
+          <select id="rMatch">
+            <option value="word">كلمة مستقلة داخل الرسالة (الافتراضي)</option>
+            <option value="exact">الرسالة كاملة تساوي الكلمة</option>
+          </select>
+          <button class="primary" id="rAdd">حفظ الرد</button>
+        </div>
+        <div class="muted">مثال: كلمة «كم» تعمل على «كم السعر؟» ولا تعمل على «كمامة». وضع «الرسالة كاملة» يرد فقط إذا كانت الرسالة هي الكلمة نفسها.
+      </div>
+      <div class="card"><h2>🤖 الردود الحالية</h2><div id="replies"></div></div>
+    </section>
 
-      function esc(v) {
-        return String(v ?? '').replace(/[&<>"']/g, (c) =>
-          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
-        );
-      }
-      function when(ts) {
-        if (!ts) return '—';
-        try { return new Date(Number(ts)).toLocaleString('ar-EG'); } catch { return '—'; }
-      }
-      function shortJid(jid) {
-        return String(jid || '').replace('@s.whatsapp.net', '').replace('@g.us', ' (مجموعة)');
-      }
-      function empty(msg) {
-        return `<div class="empty">${esc(msg)}</div>`;
-      }
-      async function api(path, options) {
-        const res = await fetch(path, {
-          ...options,
-          headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
-        });
-        if (res.status === 401) { location.href = '/'; return null; }
-        return res.json();
-      }
+    <!-- ================= التفاعلات ================= -->
+    <section id="tab-reactions" class="hidden">
+      <div class="card">
+        <h2>➕ تفاعل تلقائي جديد</h2>
+        <div class="row three">
+          <input id="xKeyword" placeholder="الكلمة" />
+          <input id="xEmoji" placeholder="الإيموجي مثل 🔥" />
+          <span></span>
+        </div>
+        <button class="primary" id="xAdd">حفظ التفاعل</button>
+      </div>
+      <div class="card"><h2>😀 التفاعلات الحالية</h2><div id="reactions"></div></div>
+    </section>
 
-      // ------- التبويبات -------
-      const tabs = ['overview','connection','edits','deleted','chats','replies','reactions','bans','reminders'];
-      document.querySelectorAll('nav button').forEach((btn) => {
-        btn.onclick = () => {
-          document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-          tabs.forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== btn.dataset.tab));
-          refresh();
-        };
-      });
+    <!-- ================= المعدّلة ================= -->
+    <section id="tab-edits" class="hidden">
+      <div class="card"><h2>✏️ الرسائل المعدّلة</h2><div id="edits"></div></div>
+    </section>
 
-      // ------- حالة الجلسات -------
-      function stateLabel(s) {
-        if (s.connection === 'open') return '🟢 متصل';
-        if (s.connection === 'qr') return '🟡 بانتظار مسح QR';
-        if (s.connection === 'loggedout') return '⛔ خرج من واتساب — يحتاج إعادة ربط';
-        if (s.connection === 'connecting') return '🔵 جارٍ الاتصال…';
-        return '🔴 منقطع';
-      }
+    <!-- ================= المحذوفة ================= -->
+    <section id="tab-deleted" class="hidden">
+      <div class="card"><h2>🗑️ الرسائل المحذوفة</h2><div class="muted">لا تظهر هنا حذوفات المالك والمشرفين والمطوّر (محمية).</div><div id="deleted"></div></div>
+    </section>
 
-      // ♻️ إعادة ربط جلسة: تحذف بيانات الربط المنتهية وتطلب رمز QR جديد.
-      // مهم: عندما يطرد واتساب البوت (loggedOut) لا ينفع أمر ".اعادةربط" لأن البوت
-      // نفسه مقطوع، فهذه هي الطريقة الوحيدة للربط من المتصفح أو عبر `npm run reconnect`.
-      async function relinkSession(name) {
-        const session = typeof name === 'string' ? name.trim() : '';
-        const target = session || $('relinkSession').value.trim();
-        const btn = $('relinkBtn');
-        const result = $('relinkResult');
-        if (!confirm(`إعادة ربط الجلسة «${target || 'default'}»؟\nسيُحذف الربط الحالي ويظهر رمز QR جديد.`)) return;
-        btn.disabled = true;
-        result.textContent = '⏳ جارٍ إعادة الربط…';
-        const r = await api('/api/reconnect', { method: 'POST', body: JSON.stringify({ session: target || undefined }) });
-        btn.disabled = false;
-        if (r?.ok) {
-          result.textContent = '✅ ' + (r.message || 'تم — امسح رمز QR الجديد أعلاه.');
-          $('relinkSession').value = r.session || target;
-          setTimeout(refresh, 1500);
-        } else {
-          result.textContent = '⚠️ ' + (r?.error || 'فشلت إعادة الربط');
-        }
-      }
+    <!-- ================= المحادثات ================= -->
+    <section id="tab-chats" class="hidden">
+      <div class="card"><h2>💬 آخر المحادثات</h2><div id="chats"></div></div>
+    </section>
 
-      // ------- التحميل -------
-      async function loadStatus() {
-        const data = await api('/api/status');
-        if (!data) return;
-        const open = (data.sessions || []).some((s) => s.connection === 'open');
-        const conn = $('conn');
-        conn.textContent = open ? '✅ متصل بواتساب' : '⚠️ غير متصل — امسح رمز QR';
-        conn.className = 'pill ' + (open ? 'ok' : 'bad');
-        const h = Math.floor(data.uptimeSeconds / 3600);
-        const m = Math.floor((data.uptimeSeconds % 3600) / 60);
-        $('uptime').textContent = `⏱️ يعمل منذ ${h}س ${m}د · البادئة: ${data.prefix}`;
+    <!-- ================= المهام ================= -->
+    <section id="tab-jobs" class="hidden">
+      <div class="card">
+        <h2>🗓️ مهام المجموعات المجدولة</h2>
+        <p class="muted">تُنشأ من داخل المجموعة بالأمر <span class="mono">.جدولة</span>، وتعمل فوراً بدون إعادة تشغيل.</p>
+        <div id="jobs"></div>
+      </div>
+    </section>
 
-        $('sessions').innerHTML = (data.sessions || []).length
-          ? `<table><tr><th>الجلسة</th><th>الحالة</th><th>الرقم</th><th>متصل منذ</th><th></th></tr>` +
-            data.sessions.map((s) => `<tr>
-              <td>${esc(s.name)}</td>
-              <td>${stateLabel(s)}</td>
-              <td class="mono">${esc(shortJid((s.user || '').split(':')[0]))}</td>
-              <td>${when(s.connectedAt)}</td>
-              <td><button class="ghost" onclick="relinkSession('${esc(s.name)}')">♻️ إعادة ربط</button></td></tr>`).join('') + '</table>'
-          : empty('لا توجد جلسات بعد.');
+    <!-- ================= المحظورون ================= -->
+    <section id="tab-bans" class="hidden">
+      <div class="card"><h2>🚫 المحظورون</h2><div id="bans"></div></div>
+    </section>
 
-        // 📋 أوامر الطرفية المكافئة (للسيرفر العام الذي لا يُفتح من المتصفح)
-        $('relinkCommands').innerHTML = data.recovery
-          ? `<p class="muted" style="margin-top:12px">أو من طرفية السيرفر مباشرةً:</p>
-             <pre class="mono">${data.recovery.commands.map(esc).join('\n')}</pre>`
-          : '';
+    <!-- ================= التذكيرات ================= -->
+    <section id="tab-reminders" class="hidden">
+      <div class="card"><h2>⏰ التذكيرات القادمة</h2><div id="reminders"></div></div>
+    </section>
+  </main>
 
-        const withQr = (data.sessions || []).find((s) => s.qrImage || s.qr);
-        $('qrCard').classList.toggle('hidden', !withQr);
-        if (withQr) {
-          $('qr').innerHTML = withQr.qrImage
-            ? `<img src="${withQr.qrImage}" alt="QR" />`
-            : `<p class="muted">ثبّت مكتبة <code>qrcode</code> لعرض الرمز هنا، أو امسحه من سجل التشغيل (الطرفية).</p>`;
-        }
-      }
+  <div id="toast" class="toast hidden"></div>
 
-      const statLabels = {
-        totalMessages: 'إجمالي الرسائل', messagesToday: 'رسائل آخر 24 ساعة', totalChats: 'عدد المحادثات',
-        totalUsers: 'عدد المستخدمين', editedMessages: 'رسائل معدَّلة', deletedMessages: 'رسائل محذوفة',
-        customReplies: 'ردود مخصصة', customReactions: 'تفاعلات مخصصة', bannedUsers: 'محظورون',
-        pendingReminders: 'تذكيرات معلّقة', scheduledEvents: 'مهام مجدولة',
-      };
-      async function loadStats() {
-        const s = await api('/api/stats');
-        if (!s) return;
-        $('stats').innerHTML = Object.entries(statLabels)
-          .map(([k, label]) => `<div class="stat"><div class="n">${esc(s[k] ?? 0)}</div><div class="l">${label}</div></div>`)
-          .join('');
-      }
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const TABS = ['overview', 'connection', 'anime', 'points', 'admins', 'replies', 'reactions', 'edits', 'deleted', 'chats', 'jobs', 'bans', 'reminders'];
+  let current = 'overview';
+  let busy = false;
 
-      async function loadEdits() {
-        const rows = await api('/api/edits');
-        if (!rows) return;
-        $('edits').innerHTML = rows.length
-          ? `<table><tr><th>الوقت</th><th>المُعدِّل</th><th>قبل</th><th>بعد</th><th>المحادثة</th></tr>` +
-            rows.map((r) => `<tr>
-              <td>${when(r.edited_at)}</td>
-              <td>${esc(r.sender_name || shortJid(r.sender_id))}</td>
-              <td class="old">${esc(r.old_text || '—')}</td>
-              <td class="new">${esc(r.new_text || '—')}</td>
-              <td class="mono">${esc(shortJid(r.chat_id))}</td></tr>`).join('') + '</table>'
-          : empty('لم يتم رصد أي رسالة معدَّلة بعد. عدّل رسالة في واتساب وستظهر هنا فوراً.');
-      }
+  // ---------- أدوات ----------
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const when = (ts) => { if (!ts) return '—'; try { return new Date(Number(ts)).toLocaleString('ar-EG'); } catch { return '—'; } };
+  const short = (jid) => String(jid || '').split('@')[0].split(':')[0];
+  const empty = (msg) => `<div class="empty">${esc(msg)}</div>`;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
+  }
+  async function api(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    });
+    if (res.status === 401) { location.href = '/'; return null; }
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    if (!res.ok) throw new Error((data && data.error) || `خطأ ${res.status}`);
+    return data;
+  }
+  async function act(fn, okMsg) {
+    try {
+      const r = await fn();
+      if (okMsg) toast(okMsg);
+      await refresh();
+      return r;
+    } catch (err) {
+      toast('⚠️ ' + err.message);
+      return null;
+    }
+  }
+  const postJson = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
+  const del = (path) => api(path, { method: 'DELETE' });
 
-      async function loadDeleted() {
-        const rows = await api('/api/deleted');
-        if (!rows) return;
-        $('deleted').innerHTML = rows.length
-          ? `<table><tr><th>الوقت</th><th>المُرسِل</th><th>المحتوى</th><th>المحادثة</th></tr>` +
-            rows.map((r) => `<tr>
-              <td>${when(r.timestamp)}</td>
-              <td>${esc(r.sender_name || shortJid(r.sender_id))}</td>
-              <td>${esc(r.text_content || '[وسائط]')}</td>
-              <td class="mono">${esc(shortJid(r.chat_id))}</td></tr>`).join('') + '</table>'
-          : empty('لا توجد رسائل محذوفة مسجّلة.');
-      }
+  // ---------- التبويبات (تفويض أحداث بدل onclick داخل النصوص) ----------
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tab]');
+    if (!btn) return;
+    current = btn.dataset.tab;
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b === btn));
+    TABS.forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== current));
+    btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    refresh();
+  });
 
-      async function loadChats() {
-        const rows = await api('/api/chats');
-        if (!rows) return;
-        $('chats').innerHTML = rows.length
-          ? `<table><tr><th>المحادثة</th><th>آخر رسالة</th><th>المُرسِل</th><th>الوقت</th></tr>` +
-            rows.map((r) => `<tr>
-              <td class="mono">${r.isGroup ? '👥 ' : '👤 '}${esc(shortJid(r.chatId))}</td>
-              <td>${esc(r.lastMessage || '—')}</td>
-              <td>${esc(r.lastSender || '—')}</td>
-              <td>${when(r.lastTimestamp)}</td></tr>`).join('') + '</table>'
-          : empty('لا توجد محادثات مسجّلة بعد.');
-      }
+  // ---------- الحالة ----------
+  function stateLabel(s) {
+    if (s.connection === 'open') return '🟢 متصل';
+    if (s.connection === 'qr') return '🟡 بانتظار مسح QR';
+    if (s.connection === 'loggedout') return '⛔ خرج من واتساب — يحتاج إعادة ربط';
+    if (s.connection === 'connecting') return '🔵 جارٍ الاتصال…';
+    return '🔴 منقطع';
+  }
+  async function loadStatus() {
+    const data = await api('/api/status');
+    if (!data) return;
+    const open = (data.sessions || []).some((s) => s.connection === 'open');
+    $('conn').textContent = open ? '✅ متصل' : '⚠️ غير متصل';
+    $('conn').className = 'pill ' + (open ? 'ok' : 'bad');
+    $('maintState').textContent = data.maintenance ? '🛠️ وضع الصيانة مفعّل (البوت لا يرد على الأعضاء)' : '✅ البوت يعمل بشكل طبيعي';
+    if (current === 'connection') {
+      await loadSessions();
+      const rec = data.recovery;
+      $('relinkCommands').innerHTML = rec && rec.commands ? `<pre class="codebox">${esc(rec.commands.join('\n'))}</pre>` : '';
+    }
+  }
 
-      async function loadReplies() {
-        const rows = await api('/api/replies');
-        if (!rows) return;
-        $('replies').innerHTML = rows.length
-          ? `<table><tr><th>الكلمة</th><th>الرد</th><th>النطاق</th><th></th></tr>` +
-            rows.map((r) => `<tr>
-              <td>${esc(r.keyword)}</td><td>${esc(r.reply)}</td><td>${esc(r.scope)}</td>
-              <td><button class="ghost" onclick="del('/api/replies?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
-          : empty('لا توجد ردود مخصصة.');
-      }
+  // ---------- جلسات واتساب المتعددة ----------
+  async function loadSessions() {
+    const data = await api('/api/sessions');
+    if (!data) return;
+    const box = $('sessions');
+    if (!data.sessions.length) { box.innerHTML = empty('لا توجد جلسات'); return; }
+    box.innerHTML = data.sessions.map((s) => {
+      const badge = s.primary ? '<span class="pill">أساسية</span> ' : '';
+      const user = s.user ? '<div class="muted">الحساب: ' + esc(short(s.user)) + '</div>' : '';
+      const since = s.connectedAt ? '<div class="muted">متصل منذ ' + esc(when(s.connectedAt)) + '</div>' : '';
+      const qr = s.qrImage ? `<div class="qr"><img alt="QR" src="${esc(s.qrImage)}" /></div>` : '';
+      const code = s.pairingCode
+        ? `<div class="qr"><div class="muted">أدخل هذا الكود في واتساب:</div><div dir="ltr" style="font-size:28px;letter-spacing:4px;font-weight:700;margin:6px 0">${esc(s.pairingCode)}</div></div>`
+        : (s.pairingPhone && !s.pairingError ? '<div class="muted">⏳ جارٍ طلب كود الربط…</div>' : '');
+      const err = s.pairingError ? `<div class="muted" style="color:#fca5a5">⚠️ ${esc(s.pairingError)}</div>` : '';
+      const delBtn = s.primary ? '' : `<button class="danger" data-act="sess-del" data-id="${esc(s.name)}">🗑️ حذف</button>`;
+      return `<div class="item">
+        <div class="head"><span>${badge}${esc(s.name)}</span><span>${esc(stateLabel(s))}</span></div>
+        ${user}${since}${code}${qr}${err}
+        <div class="actions">
+          <button class="ghost" data-act="sess-reconnect" data-id="${esc(s.name)}">♻️ إعادة الربط</button>
+          ${delBtn}
+        </div></div>`;
+    }).join('');
+  }
+  $('sesAdd').onclick = async () => {
+    const name = $('sesName').value.trim() || 'session' + Date.now().toString().slice(-4);
+    const method = $('sesMethod').value;
+    const phone = $('sesPhone').value.trim();
+    if (method === 'pair' && !phone) return toast('أدخل رقم الهاتف لطلب كود الربط');
+    $('sesResult').textContent = '⏳ جارٍ التجهيز…';
+    try {
+      const body = { name, phone: method === 'pair' ? phone : undefined };
+      const r = await postJson('/api/sessions', body);
+      $('sesResult').textContent = '✅ ' + r.message;
+      $('sesName').value = ''; $('sesPhone').value = '';
+      setTimeout(refresh, 2500);
+    } catch (err) { $('sesResult').textContent = '⚠️ ' + err.message; }
+  };
+  $('sesMethod').onchange = () => { $('sesPhone').style.display = $('sesMethod').value === 'pair' ? '' : 'none'; };
 
-      async function loadReactions() {
-        const rows = await api('/api/reactions');
-        if (!rows) return;
-        $('reactions').innerHTML = rows.length
-          ? `<table><tr><th>الكلمة</th><th>الإيموجي</th><th></th></tr>` +
-            rows.map((r) => `<tr><td>${esc(r.keyword)}</td><td>${esc(r.emoji)}</td>
-              <td><button class="ghost" onclick="del('/api/reactions?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
-          : empty('لا توجد تفاعلات مخصصة.');
-      }
+  // ---------- الرئيسية ----------
+  async function loadStats() {
+    const s = await api('/api/stats');
+    if (!s) return;
+    const items = [
+      ['رسائل محفوظة', s.totalMessages], ['محادثات', s.totalChats], ['أعضاء نشطون', s.totalUsers],
+      ['رسائل اليوم', s.messagesToday], ['معدّلة', s.editedMessages], ['محذوفة', s.deletedMessages],
+      ['ردود', s.customReplies], ['تفاعلات', s.customReactions], ['محظورون', s.bannedUsers],
+      ['تذكيرات معلّقة', s.pendingReminders], ['مهام مجدولة', s.scheduledEvents],
+    ];
+    $('stats').innerHTML = items.map(([l, n]) => `<div class="stat"><div class="n">${esc(n ?? 0)}</div><div class="l">${esc(l)}</div></div>`).join('');
+  }
 
-      async function loadBans() {
-        const rows = await api('/api/bans');
-        if (!rows) return;
-        $('bans').innerHTML = rows.length
-          ? `<table><tr><th>المستخدم</th><th>حُظر بواسطة</th><th>التاريخ</th><th></th></tr>` +
-            rows.map((r) => `<tr><td class="mono">${esc(shortJid(r.user_id))}</td>
-              <td class="mono">${esc(shortJid(r.banned_by))}</td><td>${when(r.banned_at)}</td>
-              <td><button class="ghost" onclick="del('/api/bans?id=${encodeURIComponent(r.user_id)}')">رفع الحظر</button></td></tr>`).join('') + '</table>'
-          : empty('لا يوجد محظورون. 🎉');
-      }
+  // ---------- الأنمي ----------
+  async function loadAnime() {
+    const o = await api('/api/anime/overview');
+    if (!o) return;
+    if (document.activeElement !== $('digestTime')) $('digestTime').value = o.digestTime;
+    $('digestInfo').textContent = `تُرسل كل يوم الساعة ${o.digestTime} (${o.timezone}) إلى ${o.subscribers.length} محادثة مشتركة.`;
+    $('subs').innerHTML = o.subscribers.map((s) => `
+      <div class="item"><div class="head"><span class="mono">${esc(s.chat_id)}</span><span>${esc(when(s.created_at))}</span></div>
+      <div class="actions"><button class="danger" data-act="sub-del" data-id="${esc(s.chat_id)}">إلغاء الاشتراك</button></div></div>`).join('') || empty('لا توجد محادثات مشتركة');
+    $('sources').innerHTML = o.sources.map((s) => `
+      <div class="item"><div class="head"><span>${esc(s.name)}</span><span>${s.enabled ? '🟢 مفعّل' : '⚪ متوقف'}</span></div>
+      <div class="mono">${esc(s.url)}</div>
+      <div class="muted">آخر نجاح: ${esc(when(s.last_ok_at))} • عناصر: ${esc(s.last_count)} ${s.last_error ? '• <span class="bad">خطأ: ' + esc(s.last_error) + '</span>' : ''}</div>
+      <div class="actions">
+        <button class="ghost" data-act="src-toggle" data-id="${esc(s.id)}" data-enabled="${s.enabled ? 0 : 1}">${s.enabled ? 'إيقاف' : 'تفعيل'}</button>
+        <button class="danger" data-act="src-del" data-id="${esc(s.id)}">حذف</button>
+      </div></div>`).join('') || empty('لا توجد مصادر');
+    $('customNews').innerHTML = o.customNews.map((n) => `
+      <div class="item"><div class="head"><span>${n.posted ? '✅ نُشر' : '⏳ بانتظار النشرة'}</span><span>${esc(when(n.created_at))}</span></div>
+      <div class="body"><b>${esc(n.title)}</b>${n.body ? '\n' + esc(n.body) : ''}${n.link ? '\n' + esc(n.link) : ''}</div>
+      <div class="actions"><button class="danger" data-act="cn-del" data-id="${esc(n.id)}">حذف</button></div></div>`).join('') || empty('لا توجد أخبار إدارية');
+    const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    $('schedule').innerHTML = o.schedule.map((c) => `
+      <div class="item"><div class="head"><span>${esc(days[c.day_of_week])} ${esc(c.time_local)}</span></div>
+      <div class="body">${esc(c.title)}${c.note ? ' — ' + esc(c.note) : ''}</div>
+      <div class="actions"><button class="danger" data-act="sch-del" data-id="${esc(c.id)}">حذف</button></div></div>`).join('') || empty('لا توجد مواعيد مخصصة');
+    $('newsList').innerHTML = o.news.map((n) => `
+      <div class="item"><div class="head"><span>${esc(n.source_name)}</span><span>${n.posted ? 'نُشر' : 'جديد'} • ${esc(when(n.published_at || n.fetched_at))}</span></div>
+      <div class="body"><b>${esc(n.title)}</b></div>${n.link ? `<div class="mono">${esc(n.link)}</div>` : ''}</div>`).join('') || empty('لا توجد أخبار بعد — حدّث المصادر');
+  }
 
-      async function loadReminders() {
-        const rows = await api('/api/reminders');
-        if (!rows) return;
-        $('reminders').innerHTML = rows.length
-          ? `<table><tr><th>الوقت</th><th>النص</th><th>الوجهة</th><th></th></tr>` +
-            rows.map((r) => `<tr><td>${when(r.remind_at)}</td><td>${esc(r.text)}</td>
-              <td class="mono">${esc(shortJid(r.target_jid))}</td>
-              <td><button class="ghost" onclick="del('/api/reminders?id=${r.id}')">حذف</button></td></tr>`).join('') + '</table>'
-          : empty('لا توجد تذكيرات معلّقة.');
-      }
+  // ---------- النقاط ----------
+  async function loadPoints() {
+    const chat = $('ptChat').value.trim();
+    const rows = await api('/api/points' + (chat ? '?chat=' + encodeURIComponent(chat) : ''));
+    $('ptList').innerHTML = (rows || []).map((r, i) => `
+      <div class="item"><div class="head"><span>${i + 1}. ${esc(r.user_name || short(r.user_id))}</span><span>${esc(r.points)} نقطة</span></div>
+      <div class="muted mono">${esc(r.user_id)} • رسائل: ${esc(r.messages)}</div></div>`).join('') || empty('لا توجد نقاط بعد');
+  }
 
-      async function del(path) {
-        await api(path, { method: 'DELETE' });
-        refresh();
-      }
-      async function addReply() {
-        const keyword = $('rKeyword').value.trim();
-        const reply = $('rReply').value.trim();
-        if (!keyword || !reply) return alert('أدخل الكلمة والرد');
-        await api('/api/replies', { method: 'POST', body: JSON.stringify({ keyword, reply, scope: $('rScope').value }) });
-        $('rKeyword').value = ''; $('rReply').value = '';
-        loadReplies();
-      }
-      async function addReaction() {
-        const keyword = $('xKeyword').value.trim();
-        const emoji = $('xEmoji').value.trim();
-        if (!keyword || !emoji) return alert('أدخل الكلمة والإيموجي');
-        await api('/api/reactions', { method: 'POST', body: JSON.stringify({ keyword, emoji }) });
-        $('xKeyword').value = ''; $('xEmoji').value = '';
-        loadReactions();
-      }
-      async function sendMessage() {
-        const chatId = $('sendChat').value.trim();
-        const text = $('sendText').value.trim();
-        if (!chatId || !text) return alert('أدخل المحادثة والنص');
-        const r = await api('/api/send', { method: 'POST', body: JSON.stringify({ chatId, text }) });
-        $('sendResult').textContent = r?.ok ? '✅ أُرسلت' : '⚠️ ' + (r?.error || 'فشل الإرسال');
-        if (r?.ok) $('sendText').value = '';
-      }
+  // ---------- المشرفون ----------
+  async function loadAdmins() {
+    const d = await api('/api/admins');
+    if (!d) return;
+    const cfg = (d.configured || []).map((n) => `
+      <div class="item"><div class="head"><span class="mono">${esc(n)}</span><span>من .env</span></div></div>`).join('');
+    const stored = (d.stored || []).map((a) => `
+      <div class="item"><div class="head"><span class="mono">${esc(a.user_id)}</span><span>${esc(when(a.added_at))}</span></div>
+      <div class="actions"><button class="danger" data-act="adm-del" data-id="${esc(a.user_id)}">إزالة</button></div></div>`).join('');
+    $('admins').innerHTML = (cfg + stored) || empty('لا يوجد مشرفون');
+  }
 
-      const loaders = {
-        overview: loadStats, connection: () => {}, edits: loadEdits, deleted: loadDeleted,
-        chats: loadChats, replies: loadReplies, reactions: loadReactions, bans: loadBans, reminders: loadReminders,
-      };
-      function activeTab() {
-        return document.querySelector('nav button.active').dataset.tab;
+  // ---------- صور الزوجات/الشخصيات المرفوعة ----------
+  async function loadWives() {
+    const rows = await api('/api/wives');
+    $('wivesList').innerHTML = (rows || []).map((w) => `
+      <div class="item"><div class="head"><span>${w.kind === 'female' ? '♀️ أنثى' : '♂️ ذكر'} • ${esc(w.name)}</span><span>${esc(when(w.created_at))}</span></div>
+      <img alt="${esc(w.name)}" loading="lazy" src="/api/wives/image?id=${encodeURIComponent(w.id)}" style="width:100%;max-height:300px;object-fit:contain;background:#0b1224;border-radius:12px;margin-top:6px" />
+      ${w.note ? `<div class="muted">${esc(w.note)}</div>` : ''}
+      <div class="actions"><button class="danger" data-act="wife-del" data-id="${esc(w.id)}">حذف</button></div></div>`).join('') || empty('لم ترفع أي صورة بعد');
+  }
+  function readAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('تعذر قراءة الملف'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------- الردود والتفاعلات ----------
+  async function loadReplies() {
+    const rows = await api('/api/replies');
+    $('replies').innerHTML = (rows || []).map((r) => `
+      <div class="item"><div class="head"><span>#${esc(r.id)} • ${esc(r.scope === 'all' ? 'الكل' : r.scope === 'group' ? 'المجموعات' : 'الخاص')}</span></div>
+      <div class="body"><b>${esc(r.keyword)}</b> ← ${esc(r.reply)}</div><div class="muted">${r.match_mode === 'exact' ? 'الرسالة كاملة' : 'كلمة مستقلة'}</div>
+      <div class="actions"><button class="danger" data-act="rep-del" data-id="${esc(r.id)}">حذف</button></div></div>`).join('') || empty('لا توجد ردود مخصصة');
+  }
+  async function loadReactions() {
+    const rows = await api('/api/reactions');
+    $('reactions').innerHTML = (rows || []).map((r) => `
+      <div class="item"><div class="head"><span>#${esc(r.id)}</span></div>
+      <div class="body">${esc(r.emoji)} ← <b>${esc(r.keyword)}</b></div>
+      <div class="actions"><button class="danger" data-act="rx-del" data-id="${esc(r.id)}">حذف</button></div></div>`).join('') || empty('لا توجد تفاعلات');
+  }
+
+  // ---------- السجلات ----------
+  async function loadEdits() {
+    const rows = await api('/api/edits?limit=60');
+    $('edits').innerHTML = (rows || []).map((e) => `
+      <div class="item"><div class="head"><span>${esc(e.sender_name || short(e.sender_id))}</span><span>${esc(when(e.edited_at))}</span></div>
+      <div class="body"><span class="old">${esc(e.old_text || '—')}</span>\n<span class="new">${esc(e.new_text || '—')}</span></div></div>`).join('') || empty('لا توجد رسائل معدّلة');
+  }
+  async function loadDeleted() {
+    const rows = await api('/api/deleted?limit=60');
+    $('deleted').innerHTML = (rows || []).map((m) => `
+      <div class="item"><div class="head"><span>${esc(m.sender_name || short(m.sender_id))}</span><span>${esc(when(m.timestamp))}</span></div>
+      <div class="body">${esc(m.text_content || '[' + (m.message_type || 'وسائط') + ']')}</div></div>`).join('') || empty('لا توجد رسائل محذوفة');
+  }
+  async function loadChats() {
+    const rows = await api('/api/chats?limit=40');
+    $('chats').innerHTML = (rows || []).map((c) => `
+      <div class="item"><div class="head"><span>${c.isGroup ? '👥 مجموعة' : '👤 خاص'}</span><span>${esc(when(c.lastTimestamp))}</span></div>
+      <div class="mono">${esc(c.chatId)}</div>
+      <div class="body">${esc(c.lastSender || '')}: ${esc(c.lastMessage || '')}</div>
+      <div class="actions"><button class="ghost" data-act="chat-use" data-id="${esc(c.chatId)}">استخدام في الإرسال</button></div></div>`).join('') || empty('لا توجد محادثات');
+  }
+  async function loadJobs() {
+    const rows = await api('/api/jobs');
+    $('jobs').innerHTML = (rows || []).map((j) => `
+      <div class="item"><div class="head"><span>#${esc(j.id)} • <span class="mono">${esc(j.cron_expression)}</span></span></div>
+      <div class="mono">${esc(j.chat_id)}</div>
+      <div class="body">${esc(j.message.startsWith('COMMAND:') ? 'أمر: ' + j.message.slice(8) : j.message)}</div>
+      <div class="actions"><button class="danger" data-act="job-del" data-id="${esc(j.id)}">حذف</button></div></div>`).join('') || empty('لا توجد مهام');
+  }
+  async function loadBans() {
+    const rows = await api('/api/bans');
+    $('bans').innerHTML = (rows || []).map((b) => `
+      <div class="item"><div class="head"><span class="mono">${esc(b.user_id)}</span><span>${esc(when(b.banned_at))}</span></div>
+      <div class="actions"><button class="ghost" data-act="ban-del" data-id="${esc(b.user_id)}">رفع الحظر</button></div></div>`).join('') || empty('لا يوجد محظورون');
+  }
+  async function loadReminders() {
+    const rows = await api('/api/reminders');
+    $('reminders').innerHTML = (rows || []).map((r) => `
+      <div class="item"><div class="head"><span>#${esc(r.id)} • ${esc(when(r.remind_at))}</span></div>
+      <div class="body">${esc(r.text)}</div>
+      <div class="actions"><button class="danger" data-act="rem-del" data-id="${esc(r.id)}">حذف</button></div></div>`).join('') || empty('لا توجد تذكيرات');
+  }
+
+  // ---------- تحديث الواجهة (للتبويب الحالي فقط) ----------
+  const LOADERS = {
+    overview: async () => { await loadStats(); await loadStatus(); },
+    connection: loadStatus,
+    anime: loadAnime,
+    points: loadPoints,
+    admins: loadAdmins,
+    wives: loadWives,
+    replies: loadReplies,
+    reactions: loadReactions,
+    edits: loadEdits,
+    deleted: loadDeleted,
+    chats: loadChats,
+    jobs: loadJobs,
+    bans: loadBans,
+    reminders: loadReminders,
+  };
+  async function refresh() {
+    if (busy) return;
+    busy = true;
+    try {
+      await LOADERS[current]();
+      const st = await api('/api/status');
+      if (st) {
+        const open = (st.sessions || []).some((s) => s.connection === 'open');
+        $('conn').textContent = open ? '✅ متصل' : '⚠️ غير متصل';
+        $('conn').className = 'pill ' + (open ? 'ok' : 'bad');
       }
-      function refresh() {
-        loadStatus();
-        (loaders[activeTab()] || (() => {}))();
-      }
-      refresh();
-      setInterval(refresh, 10000);
-    </script>
-  </body>
+    } catch (err) {
+      toast('⚠️ ' + err.message);
+    } finally {
+      busy = false;
+    }
+  }
+
+  // ---------- أحداث الإجراءات ----------
+  document.body.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const id = b.dataset.id;
+    const act = b.dataset.act;
+    if (act === 'chat-use') { $('sendChat').value = id; $('sendChat').scrollIntoView({ block: 'center' }); return toast('تم نقل المعرّف إلى حقل الإرسال'); }
+    if (/-del$/.test(act) && !confirm('هل أنت متأكد من الحذف؟')) return;
+    if (act === 'sess-reconnect' && !confirm(`إعادة ربط الجلسة «${id}»؟ سيُحذف الربط الحالي.`)) return;
+    const map = {
+      'sub-del': () => del('/api/anime/subscribers?chatId=' + encodeURIComponent(id)),
+      'src-del': () => del('/api/anime/sources?id=' + encodeURIComponent(id)),
+      'src-toggle': () => postJson('/api/anime/sources/toggle', { id: Number(id), enabled: b.dataset.enabled === '1' }),
+      'cn-del': () => del('/api/anime/custom-news?id=' + encodeURIComponent(id)),
+      'sch-del': () => del('/api/anime/schedule?id=' + encodeURIComponent(id)),
+      'adm-del': () => del('/api/admins?id=' + encodeURIComponent(id)),
+      'wife-del': () => del('/api/wives?id=' + encodeURIComponent(id)),
+      'rep-del': () => del('/api/replies?id=' + encodeURIComponent(id)),
+      'rx-del': () => del('/api/reactions?id=' + encodeURIComponent(id)),
+      'job-del': () => del('/api/jobs?id=' + encodeURIComponent(id)),
+      'ban-del': () => del('/api/bans?id=' + encodeURIComponent(id)),
+      'rem-del': () => del('/api/reminders?id=' + encodeURIComponent(id)),
+      'sess-del': () => del('/api/sessions?name=' + encodeURIComponent(id)),
+      'sess-reconnect': () => postJson('/api/reconnect', { session: id }),
+    };
+    if (map[act]) await act(map[act], 'تم');
+  });
+
+  $('maintOn').onclick = () => act(() => postJson('/api/maintenance', { enabled: true }), 'تم تفعيل الصيانة');
+  $('maintOff').onclick = () => act(() => postJson('/api/maintenance', { enabled: false }), 'تم إيقاف الصيانة');
+  $('sendBtn').onclick = async () => {
+    const chatId = $('sendChat').value.trim();
+    const text = $('sendText').value.trim();
+    if (!chatId || !text) return toast('المعرّف والنص مطلوبان');
+    const r = await act(() => postJson('/api/send', { chatId, text }), 'تم الإرسال');
+    if (r) { $('sendResult').textContent = '✅ أُرسلت'; $('sendText').value = ''; }
+  };
+  $('relinkBtn').onclick = async () => {
+    const session = $('relinkSession').value.trim();
+    if (!confirm(`إعادة ربط الجلسة «${session || 'default'}»؟\nسيُحذف الربط الحالي ويظهر رمز QR جديد.`)) return;
+    $('relinkResult').textContent = '⏳ جارٍ إعادة الربط…';
+    try {
+      const r = await postJson('/api/reconnect', { session: session || undefined });
+      $('relinkResult').textContent = '✅ ' + (r.message || 'تم');
+      setTimeout(refresh, 1500);
+    } catch (err) { $('relinkResult').textContent = '⚠️ ' + err.message; }
+  };
+
+  $('digestSave').onclick = () => act(() => postJson('/api/anime/digest-time', { time: $('digestTime').value }), 'تم حفظ وقت النشرة');
+  $('digestPreview').onclick = async () => {
+    try {
+      const r = await api('/api/anime/digest-preview');
+      $('digestText').textContent = r.text;
+      $('digestText').classList.remove('hidden');
+    } catch (err) { toast('⚠️ ' + err.message); }
+  };
+  $('digestSend').onclick = async () => {
+    if (!confirm('إرسال النشرة الآن لكل المحادثات المشتركة؟')) return;
+    const r = await act(() => postJson('/api/anime/digest-send', {}), null);
+    if (r) toast(`أُرسلت إلى ${r.sent || 0} محادثة${r.failed ? ` (فشل ${r.failed})` : ''}`);
+  };
+  $('subAdd').onclick = () => act(() => postJson('/api/anime/subscribers', { chatId: $('subChat').value.trim() }), 'تمت الإضافة');
+  $('srcAdd').onclick = () => act(() => postJson('/api/anime/sources', { name: $('srcName').value.trim(), url: $('srcUrl').value.trim() }), 'تمت إضافة المصدر');
+  $('srcRefresh').onclick = async () => {
+    $('srcResult').textContent = '⏳ جارٍ التحديث…';
+    const r = await act(() => postJson('/api/anime/sources/refresh', {}), null);
+    if (r) $('srcResult').textContent = (r.results || []).map((x) => (x.ok ? `✅ ${x.name}: ${x.count}` : `⚠️ ${x.name}: ${x.error}`)).join(' • ');
+  };
+  $('cnAdd').onclick = () => act(() => postJson('/api/anime/custom-news', { title: $('cnTitle').value.trim(), body: $('cnBody').value.trim(), link: $('cnLink').value.trim() }), 'تمت إضافة الخبر للنشرة القادمة');
+  $('schAdd').onclick = () => act(() => postJson('/api/anime/schedule', { title: $('schTitle').value.trim(), day: Number($('schDay').value), time: $('schTime').value, note: $('schNote').value.trim() }), 'تمت إضافة الموعد');
+
+  $('ptLoad').onclick = loadPoints;
+  $('ptAdjBtn').onclick = async () => {
+    const r = await act(() => postJson('/api/points', { chatId: $('ptAdjChat').value.trim(), userId: $('ptAdjUser').value.trim(), delta: Number($('ptAdjDelta').value) }), 'تم تعديل النقاط');
+    if (r) $('ptAdjResult').textContent = `الرصيد الجديد: ${r.points}`;
+  };
+  $('admAdd').onclick = async () => {
+    const r = await act(() => postJson('/api/admins', { number: $('admNumber').value.trim() }), 'تمت إضافة المشرف');
+    if (r) { $('admResult').textContent = '✅ تمت الإضافة'; $('admNumber').value = ''; }
+  };
+  $('wifeAdd').onclick = async () => {
+    const file = $('wifeFile').files[0];
+    const name = $('wifeName').value.trim();
+    if (!file) return toast('اختر صورة أولاً');
+    if (!name) return toast('اكتب اسم الشخصية');
+    if (file.size > 4 * 1024 * 1024) return toast('الصورة أكبر من 4 ميغابايت');
+    let dataUrl;
+    try { dataUrl = await readAsDataUrl(file); } catch (err) { return toast('⚠️ ' + err.message); }
+    $('wifeResult').textContent = '⏳ جارٍ الرفع…';
+    const r = await act(() => postJson('/api/wives', { kind: $('wifeKind').value, name, note: $('wifeNote').value.trim(), dataUrl }), 'تم رفع الصورة');
+    $('wifeResult').textContent = r ? '✅ تمت الإضافة إلى القائمة' : '';
+    if (r) { $('wifeName').value = ''; $('wifeNote').value = ''; $('wifeFile').value = ''; }
+  };
+  $('rAdd').onclick = async () => {
+    const keyword = $('rKeyword').value.trim();
+    const reply = $('rReply').value.trim();
+    if (!keyword || !reply) return toast('الكلمة والرد مطلوبان');
+    const r = await act(() => postJson('/api/replies', { keyword, reply, scope: $('rScope').value, matchMode: $('rMatch').value }), 'تم حفظ الرد');
+    if (r) { $('rKeyword').value = ''; $('rReply').value = ''; }
+  };
+  $('xAdd').onclick = async () => {
+    const keyword = $('xKeyword').value.trim();
+    const emoji = $('xEmoji').value.trim();
+    if (!keyword || !emoji) return toast('الكلمة والإيموجي مطلوبان');
+    const r = await act(() => postJson('/api/reactions', { keyword, emoji }), 'تم حفظ التفاعل');
+    if (r) { $('xKeyword').value = ''; $('xEmoji').value = ''; }
+  };
+
+  // تحديث دوري للتبويب الحالي فقط، ويتوقف أثناء الكتابة في حقل
+  setInterval(() => {
+    const active = document.activeElement;
+    const typing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    if (!typing && !document.hidden) refresh();
+  }, 15000);
+  refresh();
+})();
+</script>
+</body>
 </html>

@@ -57,6 +57,9 @@ const sessionStub = {
     return this.sessions;
   },
   getConfiguredSessionNames: () => ['default', 'second'],
+  getAllSessionNames: () => ['default', 'second', 'extra'],
+  addSession: ({ name, phone }) => ({ name, method: phone ? 'pairing' : 'qr' }),
+  removeSession: (name) => { if (name === 'default') throw new Error('لا يمكن حذف الجلسة الأساسية'); return { name }; },
   normalizeSessionName: (value) => (value || 'default').trim(),
   recoveryInstructions: (name = 'default') => ({
     sessionName: name,
@@ -195,7 +198,7 @@ test(
         body: { session: 'not-configured' },
       });
       assert.equal(bad.status, 400);
-      assert.deepEqual(bad.data.sessions, ['default', 'second']);
+      assert.deepEqual(bad.data.sessions, ['default', 'second', 'extra']);
     });
   }
 );

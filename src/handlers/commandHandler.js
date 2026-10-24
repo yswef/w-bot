@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const responses = require('../utils/responses');
 const { isBanned } = require('../database/db');
 const { suggestCommand } = require('../commands/registry');
+const { isOwnerJid, isAdminJid } = require('../utils/permissions');
 
 // =============================================
 // 🧩 مسجل الأوامر الرئيسي - أضف ملف جديد وسجّله هنا
@@ -85,6 +86,7 @@ const commands = {
   'منع-الروابط': require('../commands/groupAdmin'),
   antilink: require('../commands/groupAdmin'),
   welcome: require('../commands/groupAdmin'),
+  ترحيب: require('../commands/groupAdmin'),
   جدولة: require('../commands/groupAdmin'),
   حظر: require('../commands/groupAdmin'),
   ban: require('../commands/groupAdmin'),
@@ -110,7 +112,6 @@ const commands = {
   حذفتفاعل: require('../commands/admin'),
   رد: require('../commands/admin'),
   حذفرد: require('../commands/admin'),
-  ترحيب: require('../commands/admin'),
   لوحة: require('../commands/admin'),
   dashboard: require('../commands/admin'),
   panel: require('../commands/admin'),
@@ -118,12 +119,38 @@ const commands = {
   اعادةربط: require('../commands/admin'),
   reconnect: require('../commands/admin'),
   بث: require('../commands/admin'),
+  ادمن: require('../commands/admin'),
+  مشرف: require('../commands/admin'),
+  admins: require('../commands/admin'),
+
+  // --- النقاط والتفاعل ---
+  نقاطي: require('../commands/points'),
+  نقاط: require('../commands/points'),
+  points: require('../commands/points'),
+  المتصدرين: require('../commands/points'),
+  توب: require('../commands/points'),
+  leaderboard: require('../commands/points'),
 
   // --- سجل التعديلات والحذف ---
   تعديلات: require('../commands/history'),
   edits: require('../commands/history'),
   محذوفات: require('../commands/history'),
   deleted: require('../commands/history'),
+
+  // --- أوامر تفاعلية ممتعة ---
+  مين: require('../commands/social'),
+  who: require('../commands/social'),
+  خيّر: require('../commands/social'),
+  خير: require('../commands/social'),
+  choose: require('../commands/social'),
+  حظ: require('../commands/social'),
+  luck: require('../commands/social'),
+  تقييم: require('../commands/social'),
+  rate: require('../commands/social'),
+  لقب: require('../commands/social'),
+  title: require('../commands/social'),
+  كوميدي: require('../commands/fun'),
+  comedy: require('../commands/fun'),
 
   // --- أوامر متنوعة ---
   حب: require('../commands/extras'),
@@ -146,6 +173,11 @@ const commands = {
   searchanime: require('../commands/animeNews'),
   'نشرة-انمي': require('../commands/animeNews'),
   'إيقاف-نشرة': require('../commands/animeNews'),
+  'مواعيد-انمي': require('../commands/animeNews'),
+  'جدول-انمي': require('../commands/animeNews'),
+  'اخبار-انمي': require('../commands/animeNews'),
+  'anews': require('../commands/animeNews'),
+  'anischedule': require('../commands/animeNews'),
 
   // --- أدوات عامة ---
   طقس: require('../commands/utils'),
@@ -174,15 +206,17 @@ const commands = {
   contact: require('../commands/developer'),
 };
 
-// ⚠️ إصلاح: كانت هذه الدالة تتحقق فقط من config.ownerNumbers، وبالتالي
-// الأدمن الثاني (secondAdminNumber) كان يُعامل كمستخدم عادي في: تجاوز
-// وضع الصيانة، حماية الروابط (anti-link)، وتجاوز الحظر. الآن تشمل
-// config.adminNumbers (كل المالكين + الأدمن الثاني).
+// ⚠️ إصلاح: كانت المقارنة digits.includes(owner) تعتبر أي رقم يحتوي على رقم
+// المالك مالكاً. الآن المقارنة دقيقة على جزء المستخدم فقط (انظر utils/permissions).
+// isOwnerId = مشرف (مالك/أدمن ثاني/مشرف مضاف من اللوحة) وتُستخدم للصلاحيات العامة.
 function isOwnerId(senderId) {
-  const owners = config.adminNumbers || config.ownerNumbers || [config.ownerNumber];
-  const digits = (senderId || '').replace(/\D/g, '');
-  return owners.some((o) => o && digits.includes(o));
+  return isAdminJid(senderId);
 }
+
+// أوامر لا يُسمح بها إلا لمالك البوت (وليس المشرفين العاديين)
+const OWNER_ONLY_KEYS = new Set([
+  'لوحة', 'dashboard', 'panel', 'جلسات', 'اعادةربط', 'reconnect', 'بث', 'ادمن', 'مشرف', 'admins',
+]);
 
 async function handleCommand({ sock, msg, text, chatId, senderId }) {
   const withoutPrefix = text.slice(config.prefix.length).trim();
@@ -214,7 +248,13 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
     return;
   }
 
-  // 🚫 نظام الحظر - المحظورون لا يستطيعون استخدام أي أمر (باستثناء المالك)
+  // 🔐 أوامر المالك فقط
+  if (OWNER_ONLY_KEYS.has(commandKey) && !isOwnerJid(senderId)) {
+    await sock.sendMessage(chatId, { text: '🔒 هذا الأمر للمالك فقط.' }, { quoted: msg });
+    return;
+  }
+
+  // 🚫 نظام الحظر - المحظورون لا يستطيعون استخدام أي أمر (باستثناء المشرفين)
   if (!isOwnerId(senderId) && isBanned(senderId)) {
     await sock.sendMessage(chatId, { text: responses.get('persona', 'banned') }, { quoted: msg });
     return;
@@ -236,3 +276,4 @@ async function handleCommand({ sock, msg, text, chatId, senderId }) {
 
 module.exports = handleCommand;
 module.exports.isOwnerId = isOwnerId;
+module.exports.OWNER_ONLY_KEYS = OWNER_ONLY_KEYS;

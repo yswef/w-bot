@@ -10,12 +10,14 @@ const logger = require('./utils/logger');
 const handleIncomingMessages = require('./handlers/messageHandler');
 const handleMessageUpdates = require('./handlers/deleteHandler');
 const startScheduler = require('./scheduler/events');
+const { handleParticipantsUpdate } = require('./handlers/welcomeHandler');
 const {
   normalizeSessionName,
   getConfiguredSessionNames,
   getSessionPath,
   recoveryInstructions,
 } = require('./utils/sessions');
+const { listWaSessions, upsertWaSession, deactivateWaSession } = require('./database/db');
 
 const activeBots = new Map();
 
@@ -30,6 +32,11 @@ const reconnectTimers = new Map(); // name -> Timeout
 
 // 🧷 جلسات أُغلقت بقصد (من resetSession) — لا يجب إعادة اتصالها تلقائياً
 const intentionalClose = new Set();
+// ربط برقم الهاتف (كود بدل QR): name -> رقم الهاتف. يبقى حتى يكتمل الربط فقط،
+// فيُطلب كود جديد تلقائياً عند كل إعادة اتصال قبل اكتمال الربط.
+const pendingPairing = new Map();
+const PAIRING_DELAY_MS = Math.max(0, Number(process.env.PAIRING_REQUEST_DELAY_MS || 3000));
+const PAIRING_MAX_ATTEMPTS = 4;
 
 // 🔁 حالة إعادة الضبط التلقائية بعد "تسجيل الخروج"
 const autoResetState = new Map(); // name -> { attempts, lastAt }
@@ -86,6 +93,28 @@ function scheduleReconnect(name, delayMs, reason = '') {
   logger.info(`[${name}] ⏳ إعادة اتصال تلقائية بعد ${Math.round(delayMs / 1000)} ثانية ${reason}`.trim());
 }
 
+// يطلب كود الربط من واتساب ويخزّنه في الحالة (تظهر في اللوحة). يتوقف إذا صار السوكيت قديماً.
+async function requestPairingCodeWithRetry(sock, name, phone, attempt = 1) {
+  if (activeBots.get(name) !== sock) return;
+  try {
+    const raw = await sock.requestPairingCode(phone);
+    if (activeBots.get(name) !== sock) return;
+    const code = String(raw || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+    const pretty = code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+    updateStatus(name, { pairingCode: pretty, pairingPhone: phone, pairingAt: Date.now(), pairingError: null });
+    logger.info(`[${name}] 🔢 كود الربط بالهاتف: ${pretty} — أدخله في واتساب > الأجهزة المرتبطة > ربط برقم الهاتف.`);
+  } catch (err) {
+    if (activeBots.get(name) !== sock) return;
+    logger.warn(`[${name}] تعذّر طلب كود الربط (محاولة ${attempt}/${PAIRING_MAX_ATTEMPTS}): ${err.message}`);
+    if (attempt < PAIRING_MAX_ATTEMPTS) {
+      const t = setTimeout(() => requestPairingCodeWithRetry(sock, name, phone, attempt + 1), 4000 * attempt);
+      if (t.unref) t.unref();
+    } else {
+      updateStatus(name, { pairingCode: null, pairingError: 'تعذّر الحصول على كود الربط. تأكد من الرقم (بالصيغة الدولية بدون +) ثم أعد المحاولة.' });
+    }
+  }
+}
+
 async function launchSession(normalizedName) {
   const sessionDir = getSessionPath(normalizedName);
   if (!fs.existsSync(sessionDir)) {
@@ -105,7 +134,18 @@ async function launchSession(normalizedName) {
     browser: ['WhatsApp Bot', 'Chrome', '1.0.0'],
   });
 
+  // ⚠️ إصلاح التكرار: السوكيت القديم يبقى حياً لحظة بعد إعادة الاتصال، فكان يعالج
+  // الرسائل والأوامر مرة ثانية. الآن كل مستمع يتجاهل أي سوكيت لم يعد هو الحالي.
+  const isCurrent = () => activeBots.get(normalizedName) === sock;
+
   sock.ev.on('connection.update', (update) => {
+    if (!isCurrent()) {
+      if (update.connection === 'close') {
+        intentionalClose.delete(normalizedName);
+        logger.info(`[${normalizedName}] تم إغلاق سوكيت قديم (لا يؤثر على الجلسة الحالية).`);
+      }
+      return;
+    }
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -140,9 +180,13 @@ async function launchSession(normalizedName) {
     } else if (connection === 'open') {
       logger.info(`[${normalizedName}] ✅ Connected to WhatsApp successfully.`);
       autoResetState.delete(normalizedName); // نجح الربط ← صفّر عدّاد المحاولات
+      pendingPairing.delete(normalizedName);
       updateStatus(normalizedName, {
         connection: 'open',
         qr: null,
+        pairingCode: null,
+        pairingPhone: null,
+        pairingError: null,
         user: sock.user?.id || null,
         connectedAt: Date.now(),
         lastDisconnect: null,
@@ -155,20 +199,50 @@ async function launchSession(normalizedName) {
   });
 
   sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('messages.upsert', (payload) => handleIncomingMessages(payload, sock));
-  sock.ev.on('messages.update', (updates) => handleMessageUpdates(updates, sock));
+  sock.ev.on('messages.upsert', (payload) => {
+    if (!isCurrent()) return;
+    handleIncomingMessages(payload, sock);
+  });
+  sock.ev.on('messages.update', (updates) => {
+    if (!isCurrent()) return;
+    handleMessageUpdates(updates, sock);
+  });
+  // الترحيب يعتمد على حدث انضمام الأعضاء الرسمي
+  sock.ev.on('group-participants.update', (event) => {
+    if (!isCurrent()) return;
+    handleParticipantsUpdate(event, sock).catch((err) => logger.error('خطأ في الترحيب: ' + err.message));
+  });
 
+  // إن وُجد سوكيت سابق لنفس الجلسة نغلقه حتى لا يبقى حياً بالخلفية
+  const previous = activeBots.get(normalizedName);
   activeBots.set(normalizedName, sock);
-
-  if (normalizedName === getConfiguredSessionNames()[0]) {
-    startScheduler(sock);
+  if (previous && previous !== sock) {
+    try { previous.end?.(undefined); } catch { /* تجاهل */ }
   }
 
+  // ربط برقم الهاتف: نطلب الكود بعد لحظة قصيرة (يحتاج السوكيت أن يبدأ الاتصال أولاً)
+  const pairingPhone = pendingPairing.get(normalizedName);
+  if (pairingPhone && !state.creds?.registered) {
+    updateStatus(normalizedName, { pairingPhone, pairingError: null });
+    const t = setTimeout(() => requestPairingCodeWithRetry(sock, normalizedName, pairingPhone), PAIRING_DELAY_MS);
+    if (t.unref) t.unref();
+  } else if (state.creds?.registered) {
+    pendingPairing.delete(normalizedName);
+  }
+
+  // الجدولة تعمل مرة واحدة فقط لكل عملية، وتستخدم دائماً السوكيت الحالي للجلسة الأساسية
+  if (normalizedName === getConfiguredSessionNames()[0]) {
+    startScheduler(() => activeBots.get(normalizedName) || null);
+  }
   return sock;
 }
 
 async function startBot(sessionName = 'default') {
   const normalizedName = normalizeSessionName(sessionName);
+  // 🚧 منع التكرار: إن كانت الجلسة متصلة الآن فلا نفتح سوكيت ثانياً
+  if (activeBots.has(normalizedName) && sessionStatus.get(normalizedName)?.connection === 'open') {
+    return activeBots.get(normalizedName);
+  }
 
   // 🚧 لو طُلب تشغيل نفس الجلسة وهي قيد التشغيل أصلاً نتجاهل الطلب المكرر،
   // لأن تشغيل جلستين بنفس بيانات الاعتماد يجعل واتساب يطرد إحداهما (loggedOut).
@@ -226,13 +300,17 @@ function handleLoggedOut(normalizedName) {
   reconnectTimers.set(normalizedName, timer);
 }
 
-async function resetSession(sessionName = 'default') {
+async function resetSession(sessionName = 'default', opts = {}) {
   const normalizedName = normalizeSessionName(sessionName);
   const sessionDir = getSessionPath(normalizedName);
 
   // ألغِ أي إعادة اتصال معلّقة حتى لا نحصل على جلستين تعملان معاً
   clearReconnectTimer(normalizedName);
   autoResetState.delete(normalizedName);
+  // الجلسة أُضيفت بكود الهاتف ← تبقى في وضع الكود عند إعادة الربط (لا تتحول إلى QR)
+  const pairingPhone = opts.pairingPhone || storedPairingPhone(normalizedName);
+  if (pairingPhone) pendingPairing.set(normalizedName, pairingPhone);
+  else pendingPairing.delete(normalizedName);
 
   if (fs.existsSync(sessionDir)) {
     fs.rmSync(sessionDir, { recursive: true, force: true });
@@ -250,7 +328,10 @@ async function resetSession(sessionName = 'default') {
     }
   }
   activeBots.delete(normalizedName);
-  updateStatus(normalizedName, { connection: 'connecting', qr: null, needsRelink: false, user: null, connectedAt: null });
+  updateStatus(normalizedName, {
+    connection: 'connecting', qr: null, needsRelink: false, user: null, connectedAt: null,
+    pairingCode: null, pairingError: null, pairingPhone: null,
+  });
 
   logger.info(`[${normalizedName}] ♻️ جاري إعادة الربط — راقب رمز QR في الطرفية أو في لوحة التحكم.`);
   return startBot(normalizedName);
@@ -265,11 +346,90 @@ function getActiveSocket(sessionName) {
   return activeBots.values().next().value || null;
 }
 
-async function startAllSessions() {
-  const names = getConfiguredSessionNames();
-  for (const name of names) {
-    await startBot(name);
+/** رقم الهاتف المحفوظ لجلسة أُضيفت بكود الربط (أو null) */
+function storedPairingPhone(name) {
+  try {
+    const row = (listWaSessions() || []).find((r) => normalizeSessionName(r.name) === name);
+    return row && row.login_method === 'pairing' && row.phone ? row.phone : null;
+  } catch {
+    return null;
   }
+}
+
+// كل الجلسات: الأساسية من .env + الإضافية المحفوظة من اللوحة
+function getAllSessionNames() {
+  const env = getConfiguredSessionNames();
+  let extra = [];
+  try {
+    extra = (listWaSessions() || []).map((r) => normalizeSessionName(r.name));
+  } catch {
+    extra = [];
+  }
+  return Array.from(new Set([...env, ...extra]));
+}
+
+async function startAllSessions() {
+  for (const name of getAllSessionNames()) {
+    try {
+      await startBot(name);
+    } catch (err) {
+      logger.error(`[${name}] تعذّر تشغيل الجلسة: ${err.message}`);
+    }
+  }
+}
+
+const SESSION_NAME_RE = /^[\p{L}\p{N}_-]{1,32}$/u;
+
+/**
+ * يضيف جلسة جديدة من اللوحة.
+ * - بدون phone: تُعرض QR للربط.
+ * - مع phone: يُطلب كود ربط (8 أحرف) يُدخله المستخدم في واتساب.
+ * التشغيل يتم في الخلفية حتى لا تنتظر الواجهة شبكة واتساب.
+ */
+function addSession({ name, phone = null } = {}) {
+  const normalized = normalizeSessionName(name);
+  if (!SESSION_NAME_RE.test(normalized)) {
+    throw new Error('اسم الجلسة يجب أن يكون حروفاً أو أرقاماً أو - أو _ (حتى 32 حرفاً)');
+  }
+  if (phone && !/^[1-9]\d{7,14}$/.test(phone)) {
+    throw new Error('رقم الهاتف يجب أن يكون بالصيغة الدولية بدون + أو 00 (مثال: 967771234567)');
+  }
+  const exists = getAllSessionNames().includes(normalized);
+  if (exists && !phone) {
+    const status = sessionStatus.get(normalized);
+    if (status && status.connection !== 'loggedout') throw new Error(`الجلسة ${normalized} موجودة وتعمل بالفعل`);
+  }
+
+  upsertWaSession({ name: normalized, loginMethod: phone ? 'pairing' : 'qr', phone: phone || null });
+
+  const run = phone ? resetSession(normalized, { pairingPhone: phone }) : startBot(normalized);
+  run.catch((err) => logger.error(`[${normalized}] فشل تشغيل الجلسة: ${err.message}`));
+  return { name: normalized, method: phone ? 'pairing' : 'qr' };
+}
+
+/** يحذف جلسة إضافية: يغلق سوكيتها ويمسح بيانات ربطها ويعطّلها في القاعدة. الجلسة الأساسية لا تُحذف من اللوحة. */
+function removeSession(name) {
+  const normalized = normalizeSessionName(name);
+  if (normalized === getConfiguredSessionNames()[0]) {
+    throw new Error('لا يمكن حذف الجلسة الأساسية من اللوحة (عرّفها في .env إن أردت تغييرها)');
+  }
+  clearReconnectTimer(normalized);
+  autoResetState.delete(normalized);
+  pendingPairing.delete(normalized);
+
+  const sock = activeBots.get(normalized);
+  if (sock) {
+    intentionalClose.add(normalized);
+    try { sock.end?.(undefined); } catch { /* تجاهل */ }
+  }
+  activeBots.delete(normalized);
+  sessionStatus.delete(normalized);
+
+  const dir = getSessionPath(normalized);
+  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  deactivateWaSession(normalized);
+  logger.info(`[${normalized}] 🗑️ حُذفت الجلسة من اللوحة.`);
+  return { name: normalized };
 }
 
 module.exports = {
@@ -283,4 +443,7 @@ module.exports = {
   getActiveSocket,
   normalizeSessionName,
   recoveryInstructions,
+  getAllSessionNames,
+  addSession,
+  removeSession,
 };

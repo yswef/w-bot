@@ -3,8 +3,23 @@
 // =============================================
 
 const config = require('../config');
-const { setChatSetting, getChatSettings, addScheduledEvent, banUser, unbanUser, getBannedUsers } = require('../database/db');
+const {
+    setChatSetting, getChatSettings, addScheduledEvent, banUser, unbanUser, getBannedUsers,
+    setWelcomeMessage, getWelcomeMessage, listScheduledEvents, deactivateScheduledEvent,
+} = require('../database/db');
 const responses = require('../utils/responses');
+const { isAdminJid } = require('../utils/permissions');
+const { DEFAULT_TEXT } = require('../handlers/welcomeHandler');
+
+// إعادة تحميل جدولة المجموعات فوراً (بدون انتظار إعادة التشغيل)
+function reloadGroupSchedules() {
+    try {
+        require('../scheduler/events').reloadGroupEvents();
+    } catch (err) {
+        return false;
+    }
+    return true;
+}
 
 // التحقق من صلاحيات المشرف داخل المجموعة
 async function isGroupAdmin(sock, chatId, senderId) {
@@ -17,11 +32,19 @@ async function isGroupAdmin(sock, chatId, senderId) {
     }
 }
 
-// التحقق من صلاحية المالك (يشمل كل أرقام المالكين + الأدمن الثاني)
+// التحقق من صلاحية المشرف على البوت (مطابقة دقيقة للرقم)
 function isOwner(senderId) {
-    const digits = (senderId || '').replace(/\D/g, '');
-    const owners = config.adminNumbers || [config.ownerNumber];
-    return owners.some((o) => o && digits.includes(o));
+    return isAdminJid(senderId);
+}
+
+// يقرأ الوقت HH:MM من أول وسيط ويعيد {h, m} أو null
+function parseTime(value) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    const mi = Number(m[2]);
+    if (h > 23 || mi > 59) return null;
+    return { h, m: mi };
 }
 
 function resolveTarget(msg, args) {
@@ -275,30 +298,90 @@ module.exports = async function groupAdminCommand({ sock, msg, args, chatId, sen
     }
 
     // ===== إعداد الترحيب =====
+    // .ترحيب            ← عرض الحالة
+    // .ترحيب تشغيل|ايقاف ← تشغيل/إيقاف
+    // .ترحيب <نص>       ← نص مخصص (يُفعَّل تلقائياً، و{name} يُستبدل باسم العضو)
     if (commandKey === 'ترحيب' || commandKey === 'welcome') {
         if (!adminOrOwner) return await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_admin') }, { quoted: msg });
-        const enable = args[0] !== 'off' && args[0] !== 'ايقاف';
-        setChatSetting(chatId, 'welcome_enabled', enable);
-        await sock.sendMessage(chatId, { text: enable ? '🎉 تم تفعيل بطاقات الترحيب السحرية بالانضمام للجروب!' : '🚫 تم إيقاف الترحيب.' }, { quoted: msg });
+        const first = (args[0] || '').toLowerCase();
+        const on = ['تشغيل', 'on', 'تفعيل'];
+        const off = ['ايقاف', 'إيقاف', 'off'];
+        if (!args.length) {
+            const enabled = getChatSettings(chatId).welcome_enabled === 1;
+            const custom = getWelcomeMessage(chatId)?.message;
+            await sock.sendMessage(chatId, {
+                text: `🎉 الترحيب: *${enabled ? 'مفعّل ✅' : 'متوقف ⛔'}*\n\n📝 النص الحالي:\n${custom || DEFAULT_TEXT}\n\nالأوامر: ${config.prefix}ترحيب تشغيل | ${config.prefix}ترحيب ايقاف | ${config.prefix}ترحيب <نص> (استخدم {name} لاسم العضو)`,
+            }, { quoted: msg });
+            return;
+        }
+        if (on.includes(first) || off.includes(first)) {
+            const enable = on.includes(first);
+            setChatSetting(chatId, 'welcome_enabled', enable);
+            await sock.sendMessage(chatId, { text: enable ? '🎉 تم تفعيل الترحيب بالأعضاء الجدد!' : '🚫 تم إيقاف الترحيب.' }, { quoted: msg });
+            return;
+        }
+        const text = args.join(' ').trim();
+        if (text.length > 1000) {
+            await sock.sendMessage(chatId, { text: '⚠️ نص الترحيب طويل جداً (الحد 1000 حرف).' }, { quoted: msg });
+            return;
+        }
+        setWelcomeMessage({ chatId, message: text, enabled: true });
+        setChatSetting(chatId, 'welcome_enabled', true);
+        await sock.sendMessage(chatId, { text: '✅ تم حفظ نص الترحيب الجديد وتفعيله.' }, { quoted: msg });
         return;
     }
 
-    // ===== الجدولة السحرية للمشرفين =====
+    // ===== الجدولة للمجموعة (تبدأ فوراً) =====
+    // .جدولة قفل [HH:MM]        ← قفل المجموعة يومياً (افتراضي 00:00)
+    // .جدولة فتح [HH:MM]        ← فتح المجموعة يومياً (افتراضي 06:00)
+    // .جدولة اذكار             ← تذكير أسبوعي يوم الجمعة 14:00
+    // .جدولة نص HH:MM <الرسالة> ← رسالة يومية
+    // .جدولة قائمة | .جدولة حذف <id>
     if (commandKey === 'جدولة') {
         if (!adminOrOwner) return await sock.sendMessage(chatId, { text: responses.get('persona', 'denied_admin') }, { quoted: msg });
         const type = args[0];
-        if (type === 'قفل') {
-            addScheduledEvent(chatId, '0 0 * * *', 'COMMAND:lock');
-            await sock.sendMessage(chatId, { text: '⏰ أستا مستعد! تم جدولة قفل الجروب تلقائياً في منتصف الليل! (سيعمل غداً وسيتم تطبيقه بعد أي إعادة تشغيل)' }, { quoted: msg });
-        } else if (type === 'فتح') {
-            addScheduledEvent(chatId, '0 6 * * *', 'COMMAND:unlock');
-            await sock.sendMessage(chatId, { text: '⏰ أستا مستعد! تم جدولة فتح الجروب تلقائياً في السادسة صباحاً! (سيتم تفعيله بعد إعادة التشغيل القادمة)' }, { quoted: msg });
-        } else if (type === 'اذكار') {
-            addScheduledEvent(chatId, '0 14 * * 5', '📿 جمعة مباركة أصدقائي! أستا يذكركم بقراءة سورة الكهف والإكثار من الصلاة على النبي!');
-            await sock.sendMessage(chatId, { text: '⏰ تم إضافة التنبيه! سأقوم بتذكير الجروب كل جمعة الساعة 2 ظهراً.' }, { quoted: msg });
-        } else {
-            await sock.sendMessage(chatId, { text: `⚠️ حدد نوع السحر المطلوب: \`${config.prefix}جدولة قفل\` | \`${config.prefix}جدولة فتح\` | \`${config.prefix}جدولة اذكار\`` }, { quoted: msg });
+        const reply = (text) => sock.sendMessage(chatId, { text }, { quoted: msg });
+
+        if (type === 'قائمة' || type === 'list') {
+            const mine = listScheduledEvents().filter((e) => e.chat_id === chatId);
+            if (!mine.length) return reply('📭 لا توجد مهام مجدولة في هذه المجموعة.');
+            const lines = mine.map((e) => `• [${e.id}] ${e.cron_expression} — ${e.message.startsWith('COMMAND:') ? e.message.slice(8) : e.message.slice(0, 60)}`);
+            return reply(`🗓️ *المهام المجدولة*\n\n${lines.join('\n')}\n\nللحذف: ${config.prefix}جدولة حذف <id>`);
         }
-        return;
+        if (type === 'حذف' || type === 'delete') {
+            const id = Number(args[1]);
+            const mine = listScheduledEvents().find((e) => e.id === id && e.chat_id === chatId);
+            if (!mine) return reply(`⚠️ لا توجد مهمة برقم ${args[1] || ''} في هذه المجموعة.`);
+            deactivateScheduledEvent(id);
+            reloadGroupSchedules();
+            return reply(`✅ تم حذف المهمة رقم ${id}.`);
+        }
+
+        let cron = null;
+        let message = null;
+        let label = '';
+        if (type === 'قفل' || type === 'فتح') {
+            const t = parseTime(args[1]) || (type === 'قفل' ? { h: 0, m: 0 } : { h: 6, m: 0 });
+            cron = `${t.m} ${t.h} * * *`;
+            message = type === 'قفل' ? 'COMMAND:lock' : 'COMMAND:unlock';
+            label = `${type} المجموعة يومياً الساعة ${String(t.h).padStart(2, '0')}:${String(t.m).padStart(2, '0')}`;
+        } else if (type === 'اذكار') {
+            cron = '0 14 * * 5';
+            message = '📿 جمعة مباركة أصدقائي! لا تنسوا الإكثار من الصلاة على النبي ﷺ 🤍';
+            label = 'تذكير يوم الجمعة 14:00';
+        } else if (type === 'نص') {
+            const t = parseTime(args[1]);
+            const text = args.slice(2).join(' ').trim();
+            if (!t || !text) return reply(`⚠️ الصيغة: ${config.prefix}جدولة نص HH:MM <الرسالة>`);
+            cron = `${t.m} ${t.h} * * *`;
+            message = text;
+            label = `رسالة يومية الساعة ${args[1]}`;
+        } else {
+            return reply(`⚠️ اختر نوع المهمة: \`${config.prefix}جدولة قفل [HH:MM]\` | \`${config.prefix}جدولة فتح [HH:MM]\` | \`${config.prefix}جدولة نص HH:MM <رسالة>\` | \`${config.prefix}جدولة اذكار\` | \`${config.prefix}جدولة قائمة\``);
+        }
+
+        const id = addScheduledEvent(chatId, cron, message);
+        reloadGroupSchedules();
+        return reply(`⏰ تمت الجدولة (رقم ${id}): ${label}. ستعمل من الآن بدون الحاجة لإعادة التشغيل.`);
     }
 };

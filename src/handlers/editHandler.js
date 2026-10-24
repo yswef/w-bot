@@ -36,25 +36,8 @@ function alreadyReported(messageId, newText) {
   return false;
 }
 
-// استخراج النص من أي شكل رسالة (بما فيها الرسائل الملفوفة)
-function extractText(message) {
-  if (!message) return '';
-  const inner =
-    message.ephemeralMessage?.message ||
-    message.viewOnceMessage?.message ||
-    message.viewOnceMessageV2?.message ||
-    message.documentWithCaptionMessage?.message ||
-    message;
-
-  return (
-    inner.conversation ||
-    inner.extendedTextMessage?.text ||
-    inner.imageMessage?.caption ||
-    inner.videoMessage?.caption ||
-    inner.documentMessage?.caption ||
-    ''
-  );
-}
+// استخراج النص من أي شكل رسالة (بما فيها الرسائل الملفوفة) — مشترك مع messageHandler
+const { extractText } = require('../utils/messageContent');
 
 /**
  * يحاول استخراج تفاصيل التعديل من أي شكل من أشكال الحدث.
@@ -230,7 +213,10 @@ async function handleEditFromUpdate(update, sock) {
   // في التحديثات لا يصلنا معرّف الرسالة الأصلية أحياناً، فنستخدم مفتاح التحديث نفسه
   const originalId = edit.originalId || update.key?.id;
   const stored = originalId ? getMessage(originalId) : null;
-  const editorId = update.key?.participant || stored?.sender_id || chatId;
+  const selfJid = sock.user?.id ? `${sock.user.id.split(':')[0].split('@')[0]}@s.whatsapp.net` : null;
+  const editorId = update.key?.fromMe
+    ? selfJid || chatId
+    : update.key?.participant || stored?.sender_id || chatId;
 
   await reportEdit({
     sock,

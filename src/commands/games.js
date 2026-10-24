@@ -4,6 +4,7 @@
 
 const { setGameState, getGameState, clearGameState } = require('../database/db');
 const config = require('../config');
+const { isAdminJid } = require('../utils/permissions');
 
 const rpsOptions = ['حجر', 'ورقه', 'مقص'];
 const rpsEmoji = { 'حجر': '✊', 'ورقه': '✋', 'مقص': '✌️' };
@@ -139,9 +140,7 @@ function shuffleWord(word) {
 }
 
 async function isGroupAdminOrOwner(sock, chatId, senderId) {
-  const digits = (senderId || '').replace(/\D/g, '');
-  const admins = config.adminNumbers || [config.ownerNumber];
-  if (admins.some((a) => a && digits.includes(a))) return true;
+  if (isAdminJid(senderId)) return true;
   try {
     if (!chatId.endsWith('@g.us')) return false;
     const metadata = await sock.groupMetadata(chatId);
