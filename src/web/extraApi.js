@@ -112,6 +112,62 @@ module.exports = async function handleExtraApi(req, res, url, pathname, { json, 
   }
 
   // ---------------- صور الزوجات/الشخصيات المرفوعة من المالك ----------------
+  // ---------------- جلسات واتساب (متعددة) ----------------
+  if (pathname === '/api/sessions' || pathname === '/api/sessions/pair') {
+    const sm = require('../sessionManager');
+    const primary = require('../utils/sessions').getConfiguredSessionNames()[0];
+    if (method === 'GET') {
+      const live = Object.fromEntries(sm.getSessionsStatus().map((st) => [st.name, st]));
+      const names = sm.getAllSessionNames();
+      const sessions = await Promise.all(names.map(async (name) => {
+        const st = live[name] || {};
+        let qrImage = null;
+        if (st.qr) {
+          try { qrImage = await require('qrcode').toDataURL(st.qr, { margin: 1, width: 320 }); } catch { qrImage = null; }
+        }
+        return {
+          name,
+          primary: name === primary,
+          connection: st.connection || 'idle',
+          method: st.pairingPhone || st.pairingCode ? 'pairing' : 'qr',
+          user: st.user || null,
+          connectedAt: st.connectedAt || null,
+          qrImage,
+          pairingCode: st.pairingCode || null,
+          pairingPhone: st.pairingPhone || null,
+          pairingError: st.pairingError || null,
+          needsRelink: !!st.needsRelink,
+        };
+      }));
+      json(res, { primary, sessions });
+      return true;
+    }
+    if (method === 'POST') {
+      const body = await readBody(req);
+      const phone = String(body.phone || '').replace(/[\s+()-]/g, '').replace(/^00/, '') || null;
+      if (pathname === '/api/sessions/pair' && !phone) return json(res, { error: 'أدخل رقم الهاتف لطلب كود الربط' }, 400), true;
+      try {
+        const created = sm.addSession({ name: body.name, phone });
+        logger.info(`➕ جلسة واتساب من اللوحة: ${created.name} (${created.method})`);
+        json(res, { ok: true, ...created, message: created.method === 'pairing'
+          ? 'جارٍ طلب كود الربط — ينتظر ظهوره في البطاقة خلال بضع ثوانٍ.'
+          : 'جارٍ تجهيز رمز QR — افتحه من البطاقة وامسحه من واتساب.' });
+      } catch (err) {
+        json(res, { error: err.message }, 400);
+      }
+      return true;
+    }
+    if (method === 'DELETE') {
+      const name = url.searchParams.get('name') || '';
+      try {
+        const removed = sm.removeSession(name);
+        json(res, { ok: true, ...removed });
+      } catch (err) {
+        json(res, { error: err.message }, 400);
+      }
+      return true;
+    }
+  }
   if (pathname === '/api/wives') {
     if (method === 'GET') {
       // لا نرجع اسم الملف الداخلي، فقط بيانات العرض

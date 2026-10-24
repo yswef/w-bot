@@ -300,7 +300,7 @@ function startProfessionalDashboard() {
       if (pathname === '/api/reconnect' && req.method === 'POST') {
         const body = await readBody(req);
         const sessionManager = require('../sessionManager');
-        const configured = sessionManager.getConfiguredSessionNames();
+        const configured = sessionManager.getAllSessionNames();
         const requested = body.session ? String(body.session) : configured[0] || 'default';
         const name = sessionManager.normalizeSessionName(requested);
 
@@ -367,8 +367,13 @@ function startProfessionalDashboard() {
         if (req.method === 'POST') {
           const body = await readBody(req);
           if (!body.keyword || !body.reply) return json(res, { error: 'الكلمة والرد مطلوبان' }, 400);
-          saveCustomReply({ keyword: body.keyword, reply: body.reply, scope: body.scope || 'all' });
-          return json(res, { ok: true });
+          const id = saveCustomReply({
+            keyword: String(body.keyword).trim(),
+            reply: body.reply,
+            scope: body.scope || 'all',
+            matchMode: body.matchMode === 'exact' ? 'exact' : 'word',
+          });
+          return json(res, { ok: true, id });
         }
         if (req.method === 'DELETE') {
           const id = Number(url.searchParams.get('id'));

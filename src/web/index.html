@@ -131,15 +131,36 @@
     <!-- ================= الاتصال ================= -->
     <section id="tab-connection" class="hidden">
       <div class="card">
-        <h2>🔗 حالة الجلسات</h2>
+        <h2>🔗 جلسات واتساب</h2>
+        <p class="muted">كل جلسة حساب واتساب مستقل. الجلسة الأساسية (من .env) تشغّل الجدولة والتذكيرات، ولا تُحذف من اللوحة.</p>
         <div id="sessions"></div>
       </div>
-      <div class="card qr" id="qrCard">
-        <h2>📱 رمز QR للربط</h2>
-        <div id="qr"></div>
+      <div class="card">
+        <h2>➕ إضافة جلسة واتساب</h2>
+        <div class="row two">
+          <input id="sesName" placeholder="اسم الجلسة (مثال: second)" dir="ltr" />
+          <select id="sesMethod">
+            <option value="pair">🔢 كود الربط برقم الهاتف</option>
+            <option value="qr">📱 رمز QR</option>
+          </select>
+        </div>
+        <div class="row two" style="margin-top:8px">
+          <input id="sesPhone" placeholder="رقم الهاتف بالصيغة الدولية (مثال: 967771234567)" dir="ltr" inputmode="numeric" />
+          <button class="primary" id="sesAdd">🚀 ربط الجلسة</button>
+        </div>
+        <div class="muted" id="sesResult"></div>
+        <details class="muted" style="margin-top:8px">
+          <summary>طريقة الربط بالكود</summary>
+          <ol>
+            <li>افتح واتساب على الجوال ← الإعدادات ← الأجهزة المرتبطة.</li>
+            <li>اضغط «ربط جهاز» ← «ربط برقم الهاتف بدلاً من ذلك».</li>
+            <li>أدخل الكود المعروض في البطاقة (8 أحرف) خلال دقيقة تقريباً.</li>
+          </ol>
+          <p>إذا انتهت صلاحية الكود أو لم يظهر، اضغط ♻️ إعادة الربط على البطاقة.</p>
+        </details>
       </div>
       <div class="card">
-        <h2>♻️ إعادة ربط الجلسة</h2>
+        <h2>♻️ إعادة ربط جلسة بـ QR</h2>
         <p class="muted">تحذف بيانات الربط الحالية وتطلب رمز QR جديداً. استخدمها عند انقطاع الجلسة أو خروجها من واتساب.</p>
         <div class="row two">
           <input id="relinkSession" placeholder="اسم الجلسة (افتراضياً default)" dir="ltr" />
@@ -287,8 +308,14 @@
             <option value="all">الكل</option><option value="group">المجموعات</option><option value="private">الخاص</option>
           </select>
         </div>
-        <button class="primary" id="rAdd">حفظ الرد</button>
-        <div class="muted">مثال: كلمة «كم» لا تعمل على «كمامة»، فقط عندما تكون الكلمة مستقلة.</div>
+        <div class="row two" style="margin-top:8px">
+          <select id="rMatch">
+            <option value="word">كلمة مستقلة داخل الرسالة (الافتراضي)</option>
+            <option value="exact">الرسالة كاملة تساوي الكلمة</option>
+          </select>
+          <button class="primary" id="rAdd">حفظ الرد</button>
+        </div>
+        <div class="muted">مثال: كلمة «كم» تعمل على «كم السعر؟» ولا تعمل على «كمامة». وضع «الرسالة كاملة» يرد فقط إذا كانت الرسالة هي الكلمة نفسها.
       </div>
       <div class="card"><h2>🤖 الردود الحالية</h2><div id="replies"></div></div>
     </section>
@@ -415,15 +442,52 @@
     $('conn').className = 'pill ' + (open ? 'ok' : 'bad');
     $('maintState').textContent = data.maintenance ? '🛠️ وضع الصيانة مفعّل (البوت لا يرد على الأعضاء)' : '✅ البوت يعمل بشكل طبيعي';
     if (current === 'connection') {
-      $('sessions').innerHTML = (data.sessions || []).map((s) => `
-        <div class="item"><div class="head"><span>${esc(s.name)}</span><span>${esc(stateLabel(s))}</span></div>
-        <div class="muted">${s.user ? 'الحساب: ' + esc(short(s.user)) : ''} ${s.connectedAt ? '• متصل منذ ' + esc(when(s.connectedAt)) : ''}</div></div>`).join('') || empty('لا توجد جلسات');
-      const qrs = (data.sessions || []).filter((s) => s.qrImage);
-      $('qr').innerHTML = qrs.length ? qrs.map((s) => `<img alt="QR" src="${esc(s.qrImage)}" /><div class="muted">${esc(s.name)}</div>`).join('') : `<div class="muted">لا يوجد رمز QR الآن — ${open ? 'الجلسة متصلة' : 'انتظر ظهور الرمز'}</div>`;
+      await loadSessions();
       const rec = data.recovery;
       $('relinkCommands').innerHTML = rec && rec.commands ? `<pre class="codebox">${esc(rec.commands.join('\n'))}</pre>` : '';
     }
   }
+
+  // ---------- جلسات واتساب المتعددة ----------
+  async function loadSessions() {
+    const data = await api('/api/sessions');
+    if (!data) return;
+    const box = $('sessions');
+    if (!data.sessions.length) { box.innerHTML = empty('لا توجد جلسات'); return; }
+    box.innerHTML = data.sessions.map((s) => {
+      const badge = s.primary ? '<span class="pill">أساسية</span> ' : '';
+      const user = s.user ? '<div class="muted">الحساب: ' + esc(short(s.user)) + '</div>' : '';
+      const since = s.connectedAt ? '<div class="muted">متصل منذ ' + esc(when(s.connectedAt)) + '</div>' : '';
+      const qr = s.qrImage ? `<div class="qr"><img alt="QR" src="${esc(s.qrImage)}" /></div>` : '';
+      const code = s.pairingCode
+        ? `<div class="qr"><div class="muted">أدخل هذا الكود في واتساب:</div><div dir="ltr" style="font-size:28px;letter-spacing:4px;font-weight:700;margin:6px 0">${esc(s.pairingCode)}</div></div>`
+        : (s.pairingPhone && !s.pairingError ? '<div class="muted">⏳ جارٍ طلب كود الربط…</div>' : '');
+      const err = s.pairingError ? `<div class="muted" style="color:#fca5a5">⚠️ ${esc(s.pairingError)}</div>` : '';
+      const delBtn = s.primary ? '' : `<button class="danger" data-act="sess-del" data-id="${esc(s.name)}">🗑️ حذف</button>`;
+      return `<div class="item">
+        <div class="head"><span>${badge}${esc(s.name)}</span><span>${esc(stateLabel(s))}</span></div>
+        ${user}${since}${code}${qr}${err}
+        <div class="actions">
+          <button class="ghost" data-act="sess-reconnect" data-id="${esc(s.name)}">♻️ إعادة الربط</button>
+          ${delBtn}
+        </div></div>`;
+    }).join('');
+  }
+  $('sesAdd').onclick = async () => {
+    const name = $('sesName').value.trim() || 'session' + Date.now().toString().slice(-4);
+    const method = $('sesMethod').value;
+    const phone = $('sesPhone').value.trim();
+    if (method === 'pair' && !phone) return toast('أدخل رقم الهاتف لطلب كود الربط');
+    $('sesResult').textContent = '⏳ جارٍ التجهيز…';
+    try {
+      const body = { name, phone: method === 'pair' ? phone : undefined };
+      const r = await postJson('/api/sessions', body);
+      $('sesResult').textContent = '✅ ' + r.message;
+      $('sesName').value = ''; $('sesPhone').value = '';
+      setTimeout(refresh, 2500);
+    } catch (err) { $('sesResult').textContent = '⚠️ ' + err.message; }
+  };
+  $('sesMethod').onchange = () => { $('sesPhone').style.display = $('sesMethod').value === 'pair' ? '' : 'none'; };
 
   // ---------- الرئيسية ----------
   async function loadStats() {
@@ -513,7 +577,7 @@
     const rows = await api('/api/replies');
     $('replies').innerHTML = (rows || []).map((r) => `
       <div class="item"><div class="head"><span>#${esc(r.id)} • ${esc(r.scope === 'all' ? 'الكل' : r.scope === 'group' ? 'المجموعات' : 'الخاص')}</span></div>
-      <div class="body"><b>${esc(r.keyword)}</b> ← ${esc(r.reply)}</div>
+      <div class="body"><b>${esc(r.keyword)}</b> ← ${esc(r.reply)}</div><div class="muted">${r.match_mode === 'exact' ? 'الرسالة كاملة' : 'كلمة مستقلة'}</div>
       <div class="actions"><button class="danger" data-act="rep-del" data-id="${esc(r.id)}">حذف</button></div></div>`).join('') || empty('لا توجد ردود مخصصة');
   }
   async function loadReactions() {
@@ -610,6 +674,7 @@
     const act = b.dataset.act;
     if (act === 'chat-use') { $('sendChat').value = id; $('sendChat').scrollIntoView({ block: 'center' }); return toast('تم نقل المعرّف إلى حقل الإرسال'); }
     if (/-del$/.test(act) && !confirm('هل أنت متأكد من الحذف؟')) return;
+    if (act === 'sess-reconnect' && !confirm(`إعادة ربط الجلسة «${id}»؟ سيُحذف الربط الحالي.`)) return;
     const map = {
       'sub-del': () => del('/api/anime/subscribers?chatId=' + encodeURIComponent(id)),
       'src-del': () => del('/api/anime/sources?id=' + encodeURIComponent(id)),
@@ -623,6 +688,8 @@
       'job-del': () => del('/api/jobs?id=' + encodeURIComponent(id)),
       'ban-del': () => del('/api/bans?id=' + encodeURIComponent(id)),
       'rem-del': () => del('/api/reminders?id=' + encodeURIComponent(id)),
+      'sess-del': () => del('/api/sessions?name=' + encodeURIComponent(id)),
+      'sess-reconnect': () => postJson('/api/reconnect', { session: id }),
     };
     if (map[act]) await act(map[act], 'تم');
   });
@@ -696,7 +763,7 @@
     const keyword = $('rKeyword').value.trim();
     const reply = $('rReply').value.trim();
     if (!keyword || !reply) return toast('الكلمة والرد مطلوبان');
-    const r = await act(() => postJson('/api/replies', { keyword, reply, scope: $('rScope').value }), 'تم حفظ الرد');
+    const r = await act(() => postJson('/api/replies', { keyword, reply, scope: $('rScope').value, matchMode: $('rMatch').value }), 'تم حفظ الرد');
     if (r) { $('rKeyword').value = ''; $('rReply').value = ''; }
   };
   $('xAdd').onclick = async () => {

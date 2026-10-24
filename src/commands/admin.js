@@ -154,7 +154,7 @@ module.exports = async function adminCommand({ sock, msg, args, chatId, senderId
       `🔗 الرابط:\n${publicUrl}/?token=${token}\n\n` +
       `🔑 رمز الوصول: \`${token}\`\n\n` +
       `📱 تعمل اللوحة على الجوال. من داخلها: الأنمي والنشرة، النقاط، المشرفون، الردود، التفاعلات، المحظورون، التذكيرات، ورمز QR.\n\n` +
-      `🧩 الجلسات المتاحة: ${sessionManager().getConfiguredSessionNames().join(', ')}\n\n` +
+      `🧩 الجلسات المتاحة: ${sessionManager().getAllSessionNames().join(', ')}\n\n` +
       `💡 لتثبيت الرمز بشكل دائم ضع \`DASHBOARD_TOKEN\` في ملف .env`;
     await say(sock, chatId, msg, text);
     return;

@@ -1,6 +1,11 @@
 const { getLastSeen, getCachedCharacterImage, setCachedCharacterImage, listWifeUploads } = require('../database/db');
+const fs = require('fs');
+const path = require('path');
 const logger = require('../utils/logger');
 const { readUpload } = require('../utils/imageUpload');
+
+// مجلد الأصول المحلية (صور الزوجات المولّدة بالذكاء الاصطناعي)
+const ASSETS_DIR = path.join(__dirname, '..', '..', 'assets');
 
 // شخصيات بلاك كلوفر - روابط صور ثابتة موثوقة (لا تعتمد على أي API خارجي)
 const blackCloverMales = [
@@ -175,8 +180,31 @@ const extraFemales = [
   { name: 'فريرن (Frieren)', searchName: 'Frieren', universe: 'other', anime: 'Sousou no Frieren', quote: 'الوقت الذي نقضيه مع من نحب هو الأثمن 🌙' },
 ];
 
-const maleCharacters = [...blackCloverMales, ...otherAnimeMales, ...extraMales];
-const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales, ...extraFemales];
+// 😂 شخصيات كوميدية خيالية (من أنميات كوميدية معروفة) — الصور من AniList مثل بقية القائمة
+const comedyMales = [
+  { name: 'غينتوكي ساكاتا (Gintoki)', searchName: 'Gintoki Sakata', universe: 'comedy', anime: 'Gintama', quote: 'الحياة مثل الحلوى… أحياناً تكون مرّة، فكُل الفراولة أولاً 🍓' },
+  { name: 'شينوسوكي نوهارا (Shinnosuke)', searchName: 'Shinnosuke Nohara', universe: 'comedy', anime: 'Crayon Shin-chan', quote: 'أفضل خطة للنوم: أغمض عيني… وبعدين أفكّر 😴' },
+  { name: 'كاتسورا (Katsura)', searchName: 'Katsura Kotarou', universe: 'comedy', anime: 'Gintama', quote: 'الشعر المستعار ليس عيباً… العيب أن تتركه يقرر عنك 🎭' },
+];
+const comedyFemales = [
+  { name: 'كاجورا (Kagura)', searchName: 'Kagura', universe: 'comedy', anime: 'Gintama', quote: 'أكلي ما له حد… والمشكلة مو في الأكل، المشكلة في اللي يقرب منه 🍜' },
+  { name: 'يوتسوبا (Yotsuba)', searchName: 'Yotsuba Koiwai', universe: 'comedy', anime: 'Yotsuba&!', quote: 'كل شي جديد في الدنيا مغامرة، حتى المطر! ☔' },
+  { name: 'ناغاتورو (Nagatoro)', searchName: 'Hayase Nagatoro', universe: 'comedy', anime: 'Don\'t Toy with Me, Miss Nagatoro', quote: 'أكيد أنا أمزح… أو لا؟ 😏' },
+];
+
+// 🌸 صور زوجات مولّدة بالذكاء الاصطناعي (شخصيات خيالية بالكامل، ليست لأشخاص حقيقيين)
+// ملفاتها في assets/wives/ وتُرسل محلياً مع توضيح أنها مولّدة بالذكاء الاصطناعي
+const aiWives = [
+  { name: 'ليان (Layan)', searchName: 'Layan', localAsset: 'wives/wife-01.jpg', aiGenerated: true, universe: 'ai', quote: 'الهدوء أجمل من أي كلام 🌷' },
+  { name: 'ريتا (Rita)', searchName: 'Rita', localAsset: 'wives/wife-02.jpg', aiGenerated: true, universe: 'ai', quote: 'القهوة وحدها تكفي لتبدأ يوم حلو ☕' },
+  { name: 'هانامي (Hanami)', searchName: 'Hanami', localAsset: 'wives/wife-03.jpg', aiGenerated: true, universe: 'ai', quote: 'كل بتلة تسقط تذكّرني بأن اللحظة تستاهل 🌸' },
+  { name: 'نوفا (Nova)', searchName: 'Nova', localAsset: 'wives/wife-04.jpg', aiGenerated: true, universe: 'ai', quote: 'المدينة لا تنام، وأنا كذلك ✨' },
+  { name: 'ميرا (Mira)', searchName: 'Mira', localAsset: 'wives/wife-05.jpg', aiGenerated: true, universe: 'ai', quote: 'كتاب جيد وكوب شاي… وش أحتاج أكثر؟ 📚' },
+  { name: 'ياسمين (Yasmin)', searchName: 'Yasmin', localAsset: 'wives/wife-06.jpg', aiGenerated: true, universe: 'ai', quote: 'البحر يعلّمني الصبر، والغروب يعلّمني الأمل 🌅' },
+];
+
+const maleCharacters = [...blackCloverMales, ...otherAnimeMales, ...extraMales, ...comedyMales];
+const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales, ...extraFemales, ...comedyFemales, ...aiWives];
 const allCharacters = [...maleCharacters, ...femaleCharacters];
 
 function getRandom(list) {
@@ -308,7 +336,7 @@ let warmupStarted = false; // ⚠️ إصلاح: كان التحميل يتكر�
 async function warmupCharacterImages() {
   if (warmupStarted) return;
   warmupStarted = true;
-  const toFetch = allCharacters.filter((c) => !c.image); // فقط من لا يملك رابط صورة ثابت
+  const toFetch = allCharacters.filter((c) => !c.image && !c.localAsset); // فقط من لا يملك صورة ثابتة أو محلية
   logger.info(`⏳ بدء تحميل مسبق لصور ${toFetch.length} شخصية أنمي...`);
   let success = 0;
   let failed = 0;
@@ -349,16 +377,24 @@ async function fetchImageSafe(url) {
   }
 }
 
+// يقرأ ملفاً من assets/ مع منع الخروج من المجلد (path traversal)
+function readAsset(relPath) {
+  const full = path.resolve(ASSETS_DIR, relPath);
+  if (!full.startsWith(ASSETS_DIR + path.sep) || !fs.existsSync(full)) return null;
+  return fs.readFileSync(full);
+}
+
 // يبني ويرسل نتيجة اختيار شخصية (مستخدَم في .زوج / .زوجة / .انمي)
 async function sendCharacterResult(sock, msg, chatId, character, title) {
   const animeLine = character.anime ? `\n📺 من أنمي: *${character.anime}*` : '';
   const quoteLine = character.quote ? `\n\n💬 ${character.quote}` : '';
-  const response = `${title}\n\n⚔️ *${character.name}* 🌸${animeLine}${quoteLine}`;
+  const aiLine = character.aiGenerated ? `\n\n🤖 صورة مولّدة بالذكاء الاصطناعي لشخصية خيالية` : '';
+  const response = `${title}\n\n⚔️ *${character.name}* 🌸${animeLine}${quoteLine}${aiLine}`;
 
-  // صورة مرفوعة من المالك: نرسلها من الملف المحلي مباشرة
-  if (character.localFile) {
+  // صورة محلية (مرفوعة من المالك، أو مولّدة بالذكاء الاصطناعي ضمن assets/)
+  if (character.localFile || character.localAsset) {
     try {
-      const buffer = readUpload(character.localFile);
+      const buffer = character.localAsset ? readAsset(character.localAsset) : readUpload(character.localFile);
       if (!buffer) throw new Error('الملف غير موجود');
       await sock.sendMessage(chatId, { image: buffer, caption: response }, { quoted: msg });
     } catch (err) {
@@ -401,7 +437,7 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     }
     const q = query.toLowerCase();
     const matches = allCharacters.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.searchName.toLowerCase().includes(q)
+      (c) => c.name.toLowerCase().includes(q) || (c.searchName || '').toLowerCase().includes(q)
     );
     if (!matches.length) {
       await sock.sendMessage(chatId, { text: `😅 ما لقيت شخصية باسم "${query}" في قائمة أستا. جرّب اسماً آخر!` }, { quoted: msg });
@@ -423,9 +459,10 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
       text: `📚 *قائمة شخصيات أستا*\n\n` +
         `👥 الإجمالي: *${allCharacters.length}* شخصية\n` +
         `🍀 بلاك كلوفر: *${bc}*\n` +
+        `😂 كوميدية: *${comedyMales.length + comedyFemales.length}* · 🤖 صور مولّدة بالذكاء الاصطناعي: *${aiWives.length}*\n` +
         `🌍 أنميات أخرى: *${allCharacters.length - bc}*\n` +
         `♂️ ذكور: *${maleCharacters.length}* · ♀️ إناث: *${femaleCharacters.length}*\n\n` +
-        `جرّب: \`.انمي\` · \`.زوج\` · \`.زوجة\` · \`.شخصية <اسم>\``,
+        `جرّب: \`.انمي\` · \`.كوميدي\` · \`.زوج\` · \`.زوجة\` · \`.شخصية <اسم>\``,
     }, { quoted: msg });
     return;
   }
@@ -434,6 +471,13 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
     const character = getRandom(allCharacters);
     const title = character.universe === 'blackclover' ? '🌸 *مملكة كلوفر*' : '🌸 *عالم الأنمي*';
     await sendCharacterResult(sock, msg, chatId, character, `${title}\n\nشخصية الأنمي الخاصة بك اليوم:`);
+    return;
+  }
+
+  // 😂 .كوميدي — شخصية كوميدية عشوائية مع جملة مضحكة
+  if (commandKey === 'كوميدي' || commandKey === 'comedy') {
+    const character = getRandom([...comedyMales, ...comedyFemales]);
+    await sendCharacterResult(sock, msg, chatId, character, '😂 *زاوية الكوميديا*\n\nشخصية اليوم المضحكة:');
     return;
   }
 
@@ -462,3 +506,4 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
 };
 
 module.exports.warmupCharacterImages = warmupCharacterImages;
+module.exports.characterPools = { allCharacters, maleCharacters, femaleCharacters, comedyMales, comedyFemales, aiWives, ASSETS_DIR };

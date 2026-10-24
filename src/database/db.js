@@ -201,11 +201,15 @@ function getMessage(id) {
   return db.prepare(`SELECT * FROM messages WHERE id = ?`).get(id);
 }
 
-function saveCustomReply({ keyword, reply, scope = 'all' }) {
-  const stmt = db.prepare(`
-    INSERT INTO custom_replies (keyword, reply, scope) VALUES (?, ?, ?)
-  `);
-  stmt.run(keyword, reply, scope);
+// نوع المطابقة: 'word' = الكلمة مستقلة داخل الرسالة (الافتراضي)، 'exact' = الرسالة كاملة تساوي الكلمة
+const MATCH_MODES = ['word', 'exact'];
+
+function saveCustomReply({ keyword, reply, scope = 'all', matchMode = 'word' }) {
+  const mode = MATCH_MODES.includes(matchMode) ? matchMode : 'word';
+  const info = db.prepare(`
+    INSERT INTO custom_replies (keyword, reply, scope, match_mode) VALUES (?, ?, ?, ?)
+  `).run(keyword, reply, scope, mode);
+  return Number(info.lastInsertRowid);
 }
 
 function getCustomReplies(scope = 'all') {
@@ -726,6 +730,34 @@ function getNewsletterStatus(chatId) {
   return db.prepare(`SELECT * FROM anime_newsletter WHERE chat_id = ?`).get(chatId) || null;
 }
 
+// ترحيل قاعدة قديمة: عمود نوع المطابقة لجدول الردود (الردود القديمة تبقى 'word')
+if (!db.prepare(`PRAGMA table_info(custom_replies)`).all().some((c) => c.name === 'match_mode')) {
+  db.exec(`ALTER TABLE custom_replies ADD COLUMN match_mode TEXT NOT NULL DEFAULT 'word'`);
+}
+
+// 📱 جلسات واتساب الإضافية (تُضاف من اللوحة، والجلسة الأساسية تبقى من .env)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS wa_sessions (
+    name TEXT PRIMARY KEY,
+    login_method TEXT NOT NULL DEFAULT 'qr',
+    phone TEXT,
+    added_at INTEGER NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  )
+`);
+function listWaSessions() {
+  return db.prepare(`SELECT * FROM wa_sessions WHERE active = 1 ORDER BY added_at ASC`).all();
+}
+function upsertWaSession({ name, loginMethod = 'qr', phone = null }) {
+  db.prepare(`
+    INSERT INTO wa_sessions (name, login_method, phone, added_at, active) VALUES (?, ?, ?, ?, 1)
+    ON CONFLICT(name) DO UPDATE SET active = 1, login_method = excluded.login_method, phone = excluded.phone
+  `).run(name, loginMethod, phone, Date.now());
+}
+function deactivateWaSession(name) {
+  return db.prepare(`UPDATE wa_sessions SET active = 0 WHERE name = ?`).run(name);
+}
+
 // 🕌 جدول الجدولة الإسلامية (آيات/أذكار) — يُنشأ هنا لا في أمر islamic.js
 db.exec(`
   CREATE TABLE IF NOT EXISTS islamic_schedule (
@@ -767,6 +799,10 @@ function deleteWifeUpload(id) {
 
 module.exports = {
   db,
+  MATCH_MODES,
+  listWaSessions,
+  upsertWaSession,
+  deactivateWaSession,
   addWifeUpload,
   listWifeUploads,
   getWifeUpload,

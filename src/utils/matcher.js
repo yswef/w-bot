@@ -28,13 +28,30 @@ function containsKeyword(text, keyword) {
   const t = normalizeArabic(text);
   const k = normalizeArabic(keyword);
   if (!t || !k) return false;
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(k)}(?![\\p{L}\\p{N}])`, 'u');
+  // حدّ الكلمة: لا حرف (\p{L})، ولا رقم (\p{N})، ولا علامة تشكيل متبقية (\p{M}) قبلها أو بعدها
+  const re = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}])${escapeRegex(k)}(?![\\p{L}\\p{N}\\p{M}])`, 'u');
   return re.test(t);
 }
 
-/** يطابق النص التام (بعد التطبيع) */
-function exactMatch(text, keyword) {
-  return normalizeArabic(text) === normalizeArabic(keyword);
+/** تطبيع للمقارنة التامة: يحذف علامات الترقيم والرموز من الأطراف والداخل ويوحّد المسافات */
+function looseNormalize(s) {
+  return normalizeArabic(s).replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
 }
 
-module.exports = { normalizeArabic, containsKeyword, exactMatch };
+/** يطابق النص التام (بعد التطبيع)، فيُقبل "هلا!" و"هلا" معاً */
+function exactMatch(text, keyword) {
+  const k = looseNormalize(keyword);
+  if (!k) return false;
+  return looseNormalize(text) === k;
+}
+
+/**
+ * هل ينطبق الرد المخصص على النص؟
+ * matchMode 'exact' = الرسالة كاملة تساوي الكلمة، غير ذلك = كلمة مستقلة داخل الرسالة.
+ */
+function matchesReply(text, item) {
+  if (item.match_mode === 'exact') return exactMatch(text, item.keyword);
+  return containsKeyword(text, item.keyword);
+}
+
+module.exports = { normalizeArabic, containsKeyword, exactMatch, matchesReply };

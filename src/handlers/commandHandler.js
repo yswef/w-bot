@@ -137,6 +137,21 @@ const commands = {
   محذوفات: require('../commands/history'),
   deleted: require('../commands/history'),
 
+  // --- أوامر تفاعلية ممتعة ---
+  مين: require('../commands/social'),
+  who: require('../commands/social'),
+  خيّر: require('../commands/social'),
+  خير: require('../commands/social'),
+  choose: require('../commands/social'),
+  حظ: require('../commands/social'),
+  luck: require('../commands/social'),
+  تقييم: require('../commands/social'),
+  rate: require('../commands/social'),
+  لقب: require('../commands/social'),
+  title: require('../commands/social'),
+  كوميدي: require('../commands/fun'),
+  comedy: require('../commands/fun'),
+
   // --- أوامر متنوعة ---
   حب: require('../commands/extras'),
   love: require('../commands/extras'),

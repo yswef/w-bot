@@ -11,7 +11,7 @@ const { handleRevokeFromUpsert } = require('./deleteHandler');
 const { isOwnerId } = require('./commandHandler');
 const { checkActiveAnswer } = require('../commands/games');
 const { extractText, getRealMessageType } = require('../utils/messageContent');
-const { containsKeyword, exactMatch, normalizeArabic } = require('../utils/matcher');
+const { containsKeyword, exactMatch, normalizeArabic, matchesReply } = require('../utils/matcher');
 const { awardForMessage } = require('../services/points');
 const { jidUser } = require('../utils/permissions');
 
@@ -51,7 +51,7 @@ function alreadySeen(key) {
 function resolveCustomReply(text, chatId) {
   const replies = getCustomReplies(isGroupChat(chatId) ? 'group' : 'private');
   const matches = replies
-    .filter((item) => containsKeyword(text, item.keyword))
+    .filter((item) => matchesReply(text, item))
     .sort((a, b) => normalizeArabic(b.keyword).length - normalizeArabic(a.keyword).length);
   return matches[0]?.reply || null;
 }
