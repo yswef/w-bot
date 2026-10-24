@@ -738,8 +738,39 @@ db.exec(`
   )
 `);
 
+// 🖼️ صور الزوجات/الشخصيات التي يرفعها المالك من اللوحة
+db.exec(`
+  CREATE TABLE IF NOT EXISTS wife_uploads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('male', 'female')),
+    name TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    note TEXT,
+    created_by TEXT,
+    created_at INTEGER NOT NULL
+  )
+`);
+function addWifeUpload({ kind, name, fileName, note = null, createdBy = null }) {
+  return Number(db.prepare(`INSERT INTO wife_uploads (kind, name, file_name, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(kind, name, fileName, note, createdBy, Date.now()).lastInsertRowid);
+}
+function listWifeUploads(kind = null) {
+  if (kind) return db.prepare(`SELECT * FROM wife_uploads WHERE kind = ? ORDER BY id DESC`).all(kind);
+  return db.prepare(`SELECT * FROM wife_uploads ORDER BY id DESC`).all();
+}
+function getWifeUpload(id) {
+  return db.prepare(`SELECT * FROM wife_uploads WHERE id = ?`).get(id) || null;
+}
+function deleteWifeUpload(id) {
+  return db.prepare(`DELETE FROM wife_uploads WHERE id = ?`).run(id);
+}
+
 module.exports = {
   db,
+  addWifeUpload,
+  listWifeUploads,
+  getWifeUpload,
+  deleteWifeUpload,
   hasMessage,
   addBotAdmin,
   removeBotAdmin,

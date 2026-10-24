@@ -1,5 +1,6 @@
-const { getLastSeen, getCachedCharacterImage, setCachedCharacterImage } = require('../database/db');
+const { getLastSeen, getCachedCharacterImage, setCachedCharacterImage, listWifeUploads } = require('../database/db');
 const logger = require('../utils/logger');
+const { readUpload } = require('../utils/imageUpload');
 
 // شخصيات بلاك كلوفر - روابط صور ثابتة موثوقة (لا تعتمد على أي API خارجي)
 const blackCloverMales = [
@@ -165,12 +166,37 @@ const otherAnimeFemales = [
 ];
 
 // القوائم الكاملة المستخدمة في أوامر .زوج/.زوجة/.انمي
-const maleCharacters = [...blackCloverMales, ...otherAnimeMales];
-const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales];
+// شخصيات إضافية مشهورة (أنمي) — تُبحث صورها من AniList مثل بقية القائمة
+const extraMales = [
+  { name: 'لولوش لامبيروج (Lelouch)', searchName: 'Lelouch Lamperouge', universe: 'other', anime: 'Code Geass', quote: 'سأحقق ما أريده، مهما كان الثمن 👑' },
+  { name: 'سبايك شبيغل (Spike)', searchName: 'Spike Spiegel', universe: 'other', anime: 'Cowboy Bebop', quote: 'الماضي لا يلاحقك إلا إذا سمحت له 🚀' },
+];
+const extraFemales = [
+  { name: 'فريرن (Frieren)', searchName: 'Frieren', universe: 'other', anime: 'Sousou no Frieren', quote: 'الوقت الذي نقضيه مع من نحب هو الأثمن 🌙' },
+];
+
+const maleCharacters = [...blackCloverMales, ...otherAnimeMales, ...extraMales];
+const femaleCharacters = [...blackCloverFemales, ...otherAnimeFemales, ...extraFemales];
 const allCharacters = [...maleCharacters, ...femaleCharacters];
 
 function getRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
+}
+
+// صور يرفعها المالك من لوحة التحكم (ذكور أو إناث) — تُضاف إلى قائمة .زوج/.زوجة
+function uploadedCharacters(kind) {
+  try {
+    return (listWifeUploads(kind) || []).map((u) => ({
+      name: u.name,
+      localFile: u.file_name,
+      quote: null,
+      anime: null,
+      universe: 'upload',
+      note: u.note,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 // تطبيع النص للمقارنة (إزالة حالة الأحرف والرموز الزائدة) لفحص تطابق الأسماء
@@ -326,7 +352,21 @@ async function fetchImageSafe(url) {
 // يبني ويرسل نتيجة اختيار شخصية (مستخدَم في .زوج / .زوجة / .انمي)
 async function sendCharacterResult(sock, msg, chatId, character, title) {
   const animeLine = character.anime ? `\n📺 من أنمي: *${character.anime}*` : '';
-  const response = `${title}\n\n⚔️ *${character.name}* 🌸${animeLine}\n\n💬 ${character.quote}`;
+  const quoteLine = character.quote ? `\n\n💬 ${character.quote}` : '';
+  const response = `${title}\n\n⚔️ *${character.name}* 🌸${animeLine}${quoteLine}`;
+
+  // صورة مرفوعة من المالك: نرسلها من الملف المحلي مباشرة
+  if (character.localFile) {
+    try {
+      const buffer = readUpload(character.localFile);
+      if (!buffer) throw new Error('الملف غير موجود');
+      await sock.sendMessage(chatId, { image: buffer, caption: response }, { quoted: msg });
+    } catch (err) {
+      logger.warn('تعذر إرسال صورة مرفوعة: ' + err.message);
+      await sock.sendMessage(chatId, { text: response + '\n\n*(تعذر تحميل الصورة هذه المرة 💥)*' }, { quoted: msg });
+    }
+    return;
+  }
 
   const imageUrl = character.image || (await getCharacterImageUrl(character.searchName));
 
@@ -398,13 +438,13 @@ module.exports = async function funCommand({ sock, msg, args, chatId, senderId, 
   }
 
   if (commandKey === 'زوج') {
-    const character = getRandom(maleCharacters);
+    const character = getRandom([...maleCharacters, ...uploadedCharacters('male')]);
     await sendCharacterResult(sock, msg, chatId, character, '💖 زوجك السحري هو:');
     return;
   }
 
   if (commandKey === 'زوجة') {
-    const character = getRandom(femaleCharacters);
+    const character = getRandom([...femaleCharacters, ...uploadedCharacters('female')]);
     await sendCharacterResult(sock, msg, chatId, character, '💖 زوجتك السحرية هي:');
     return;
   }

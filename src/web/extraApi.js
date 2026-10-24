@@ -7,6 +7,7 @@ const config = require('../config');
 const db = require('../database/db');
 const { normalizePhone } = require('../utils/permissions');
 const logger = require('../utils/logger');
+const { parseImageDataUrl, saveUpload, readUpload, removeUpload, mimeFor, MAX_BYTES } = require('../utils/imageUpload');
 
 function sockets() {
   try {
@@ -108,6 +109,59 @@ module.exports = async function handleExtraApi(req, res, url, pathname, { json, 
       json(res, { ok: true });
       return true;
     }
+  }
+
+  // ---------------- صور الزوجات/الشخصيات المرفوعة من المالك ----------------
+  if (pathname === '/api/wives') {
+    if (method === 'GET') {
+      // لا نرجع اسم الملف الداخلي، فقط بيانات العرض
+      json(res, db.listWifeUploads().map((w) => ({ id: w.id, kind: w.kind, name: w.name, note: w.note, created_at: w.created_at })));
+      return true;
+    }
+    if (method === 'POST') {
+      const body = await readBody(req, Math.ceil((MAX_BYTES * 4) / 3) + 4096);
+      const kind = body.kind === 'male' || body.kind === 'female' ? body.kind : null;
+      const name = String(body.name || '').trim().slice(0, 60);
+      if (!kind || !name) return json(res, { error: 'اختر النوع (ذكر/أنثى) واكتب الاسم' }, 400), true;
+      let image;
+      try {
+        image = parseImageDataUrl(body.dataUrl);
+      } catch (err) {
+        return json(res, { error: err.message }, 400), true;
+      }
+      const fileName = saveUpload(image);
+      const newId = db.addWifeUpload({
+        kind,
+        name,
+        fileName,
+        note: String(body.note || '').trim().slice(0, 120) || null,
+        createdBy: 'panel',
+      });
+      logger.info(`🖼️ رُفعت صورة جديدة من اللوحة (${kind}): ${name}`);
+      json(res, { ok: true, id: newId });
+      return true;
+    }
+    if (method === 'DELETE') {
+      if (!id) return json(res, { error: 'المعرّف مطلوب' }, 400), true;
+      const row = db.getWifeUpload(id);
+      if (row) {
+        db.deleteWifeUpload(id);
+        try { removeUpload(row.file_name); } catch (err) { logger.warn('تعذر حذف ملف الصورة: ' + err.message); }
+      }
+      json(res, { ok: true });
+      return true;
+    }
+  }
+  if (pathname === '/api/wives/image' && method === 'GET') {
+    const row = id ? db.getWifeUpload(id) : null;
+    const buffer = row ? readUpload(row.file_name) : null;
+    if (!buffer) {
+      json(res, { error: 'الصورة غير موجودة' }, 404);
+      return true;
+    }
+    res.writeHead(200, { 'Content-Type': mimeFor(row.file_name), 'Content-Length': buffer.length, 'Cache-Control': 'private, max-age=3600' });
+    res.end(buffer);
+    return true;
   }
 
   if (!pathname.startsWith('/api/anime')) return false;

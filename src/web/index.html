@@ -93,6 +93,7 @@
     <button data-tab="anime">📺 الأنمي</button>
     <button data-tab="points">⭐ النقاط</button>
     <button data-tab="admins">👑 المشرفون</button>
+    <button data-tab="wives">🖼️ الصور</button>
     <button data-tab="replies">🤖 الردود</button>
     <button data-tab="reactions">😀 التفاعلات</button>
     <button data-tab="edits">✏️ المعدّلة</button>
@@ -253,6 +254,26 @@
         <h2>📋 المشرفون الحاليون</h2>
         <div id="admins"></div>
       </div>
+    </section>
+
+    <!-- ================= الصور (.زوج / .زوجة) ================= -->
+    <section id="tab-wives" class="hidden">
+      <div class="card">
+        <h2>🖼️ رفع صورة للشخصيات</h2>
+        <p class="muted">تُضاف الصورة إلى قائمة <span class="mono">.زوج</span> أو <span class="mono">.زوجة</span>. ارفع فقط صوراً تملك حق استخدامها، ولا ترفع صوراً لأشخاص حقيقيين بدون إذنهم. الحد الأقصى 4 ميغابايت، وصيغ PNG أو JPEG أو WEBP.</p>
+        <div class="row three">
+          <select id="wifeKind">
+            <option value="female">♀️ أنثى (زوجة)</option>
+            <option value="male">♂️ ذكر (زوج)</option>
+          </select>
+          <input id="wifeName" placeholder="الاسم (يظهر في الرد)" />
+          <input id="wifeNote" placeholder="ملاحظة (اختياري)" />
+        </div>
+        <input id="wifeFile" type="file" accept="image/png,image/jpeg,image/webp" />
+        <button class="primary" id="wifeAdd">⬆️ رفع الصورة</button>
+        <div class="muted" id="wifeResult"></div>
+      </div>
+      <div class="card"><h2>📚 الصور المرفوعة</h2><div id="wivesList"></div></div>
     </section>
 
     <!-- ================= الردود ================= -->
@@ -469,6 +490,24 @@
     $('admins').innerHTML = (cfg + stored) || empty('لا يوجد مشرفون');
   }
 
+  // ---------- صور الزوجات/الشخصيات المرفوعة ----------
+  async function loadWives() {
+    const rows = await api('/api/wives');
+    $('wivesList').innerHTML = (rows || []).map((w) => `
+      <div class="item"><div class="head"><span>${w.kind === 'female' ? '♀️ أنثى' : '♂️ ذكر'} • ${esc(w.name)}</span><span>${esc(when(w.created_at))}</span></div>
+      <img alt="${esc(w.name)}" loading="lazy" src="/api/wives/image?id=${encodeURIComponent(w.id)}" style="width:100%;max-height:300px;object-fit:contain;background:#0b1224;border-radius:12px;margin-top:6px" />
+      ${w.note ? `<div class="muted">${esc(w.note)}</div>` : ''}
+      <div class="actions"><button class="danger" data-act="wife-del" data-id="${esc(w.id)}">حذف</button></div></div>`).join('') || empty('لم ترفع أي صورة بعد');
+  }
+  function readAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('تعذر قراءة الملف'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // ---------- الردود والتفاعلات ----------
   async function loadReplies() {
     const rows = await api('/api/replies');
@@ -535,6 +574,7 @@
     anime: loadAnime,
     points: loadPoints,
     admins: loadAdmins,
+    wives: loadWives,
     replies: loadReplies,
     reactions: loadReactions,
     edits: loadEdits,
@@ -577,6 +617,7 @@
       'cn-del': () => del('/api/anime/custom-news?id=' + encodeURIComponent(id)),
       'sch-del': () => del('/api/anime/schedule?id=' + encodeURIComponent(id)),
       'adm-del': () => del('/api/admins?id=' + encodeURIComponent(id)),
+      'wife-del': () => del('/api/wives?id=' + encodeURIComponent(id)),
       'rep-del': () => del('/api/replies?id=' + encodeURIComponent(id)),
       'rx-del': () => del('/api/reactions?id=' + encodeURIComponent(id)),
       'job-del': () => del('/api/jobs?id=' + encodeURIComponent(id)),
@@ -637,6 +678,19 @@
   $('admAdd').onclick = async () => {
     const r = await act(() => postJson('/api/admins', { number: $('admNumber').value.trim() }), 'تمت إضافة المشرف');
     if (r) { $('admResult').textContent = '✅ تمت الإضافة'; $('admNumber').value = ''; }
+  };
+  $('wifeAdd').onclick = async () => {
+    const file = $('wifeFile').files[0];
+    const name = $('wifeName').value.trim();
+    if (!file) return toast('اختر صورة أولاً');
+    if (!name) return toast('اكتب اسم الشخصية');
+    if (file.size > 4 * 1024 * 1024) return toast('الصورة أكبر من 4 ميغابايت');
+    let dataUrl;
+    try { dataUrl = await readAsDataUrl(file); } catch (err) { return toast('⚠️ ' + err.message); }
+    $('wifeResult').textContent = '⏳ جارٍ الرفع…';
+    const r = await act(() => postJson('/api/wives', { kind: $('wifeKind').value, name, note: $('wifeNote').value.trim(), dataUrl }), 'تم رفع الصورة');
+    $('wifeResult').textContent = r ? '✅ تمت الإضافة إلى القائمة' : '';
+    if (r) { $('wifeName').value = ''; $('wifeNote').value = ''; $('wifeFile').value = ''; }
   };
   $('rAdd').onclick = async () => {
     const keyword = $('rKeyword').value.trim();
